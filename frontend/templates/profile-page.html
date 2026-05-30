@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Profile Page</title>
+    <link rel="stylesheet" href="{{url_for('static', path='CSS/profile-page.css')}}">
+</head>
+<body>
+    <div id="app-wrapper">
+        <header class="top-navbar">
+            <div class="brand-container"> 
+                <a href="/"><span id="app-logo">Chat-AI</span></a>
+            </div>
+            <div class="user-actions-container">
+                <a href="/profile"><span id="navbar-profile-icon">P</span></a>
+            </div>
+        </header>
+
+        <main class="main-content-wrapper">
+            <div class="profile-card">
+                
+                <div class="avatar-container">
+                    <div class="avatar">P</div>
+                </div>
+
+                <div class="profile-info-section">
+                    <div class="info-group">
+                        <span class="info-label">Username</span>
+                        <span class="info-value">Prime</span>
+                    </div>
+                    <div class="info-group">
+                        <span class="info-label">Email Address</span>
+                        <span class="info-value">prime@example.com</span>
+                    </div>
+                </div>
+
+                <div class="profile-actions-wrapper">
+                    <button class="btn btn-primary" id="edit-profile-btn">Edit Profile</button>
+                    <button class="btn btn-secondary" id="change-password-btn">Change Password</button>
+                    <button class="btn btn-danger" id="delete-account-btn">Delete Account</button>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script src="{{url_for('static', path='JS/profile-page.js')}}"></script>
+</body>
+</html>

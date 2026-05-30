@@ -1,0 +1,108 @@
+/* --- Modal Overlay Background --- */
+.modal {
+    display: none; /* Hidden by default; your JS will change this to 'flex' */
+    position: fixed;
+    z-index: 1000; /* Ensures the popup sits on top of everything else */
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent black overlay */
+    backdrop-filter: blur(3px); /* Adds a modern blur effect to the background */
+    justify-content: center;
+    align-items: center;
+}
+
+/* --- Modal Box --- */
+.modal-content {
+    background-color: #2f2f2f; /* Slightly lighter than the main body background */
+    color: #ececec;
+    padding: 30px 40px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 400px;
+    position: relative;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); /* Depth shadow */
+    animation: modalFadeIn 0.3s ease-out; /* Smooth pop-in animation */
+}
+
+@keyframes modalFadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Close Button ('x') --- */
+.close-btn {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    color: #9b9b9b;
+    font-size: 1.5rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.close-btn:hover {
+    color: #ffffff;
+}
+
+/* --- Modal Typography --- */
+.modal-content h2 {
+    text-align: center;
+    margin-bottom: 25px;
+    font-size: 1.8rem;
+    font-weight: 600;
+}
+
+/* --- Form Elements --- */
+.modal-content form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* Clean spacing between inputs */
+}
+
+/* Hide the <br> tags from your HTML since we are using flexbox gap */
+.modal-content form br {
+    display: none;
+}
+
+.modal-content input {
+    width: 100%;
+    padding: 12px 15px;
+    border-radius: 8px;
+    border: 1px solid #444;
+    background-color: #212121; /* Dark input fields */
+    color: #ececec;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.modal-content input::placeholder {
+    color: #888;
+}
+
+/* Focus state with a green accent color */
+.modal-content input:focus {
+    border-color: #10a37f; 
+}
+
+/* --- Submit Button --- */
+.modal-content button[type="submit"] {
+    margin-top: 10px;
+    width: 100%;
+    padding: 12px;
+    background-color: #10a37f; /* Accent green color */
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.modal-content button[type="submit"]:hover {
+    background-color: #0d8c6d; /* Slightly darker green on hover */
+}

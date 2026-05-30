@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Page</title>
+    <link rel="stylesheet" href="{{url_for('static', path='CSS/home-page.css')}}">
+    <link rel="stylesheet" href="{{url_for('static', path='CSS/popup.css')}}">
+</head>
+<body>
+    <div id="app-wrapper">
+        
+        <aside id="sidebar">
+            <div class="sidebar-header"></div>
+            
+            <nav class="sidebar-menu">
+                <div class="menu-item" id="new-chat-btn">
+                    <span>New chat</span>
+                </div>
+                
+                <div class="menu-item" id="recent-chats-container">
+                    <span>Recents chat</span>
+                    <ul class="recent-chats-list">
+                        <li class="recent-chat-item">Chat 1</li>
+                        <li class="recent-chat-item">Chat 2</li>
+                        <li class="recent-chat-item">Chat 3</li>
+                    </ul>
+                </div>
+            </nav>
+
+            <footer class="sidebar-footer">
+                <span class="footer-text">Get responses tailored to you</span>
+                <span class="auth-btn" id="login-btn">Login</span>
+                <span class="auth-btn" id="logout-btn">Logout</span>
+            </footer>
+        </aside>
+
+        <main id="main-chat-area">
+            
+            <header class="top-navbar">
+                <div class="brand-container"> 
+                    <button id="sidebar-toggle" class="menu-burger-btn">
+                        <img src="{{url_for('static', path='Images/icons/menu-icon.png')}}" alt="Menu">
+                    </button>
+                    <span id="app-logo"><a href="/">Chat-AI</a></span>
+                </div>
+                
+                <div class="user-actions-container">
+                    <a href="/profile"><span id="profile-icon">P</span></a>
+                    <button class="nav-signin-btn" id="openSigninBtn">Sign in</button>
+                    <button class="nav-signup-btn" id="openSignupBtn">Sign up</button>
+                </div>
+            </header>
+
+            <section class="chat-interface">
+                <div class="greeting-container">
+                    <h3>What is on your mind?</h3>
+                </div>
+                
+                <div class="chat-input-container">
+                    <img src="{{url_for('static', path='Images/icons/add-file-icon.png')}}" alt="Add" class="input-icon icon-left">
+
+                    <input type="text" placeholder="Ask anything" class="chat-input">
+
+                    <div class="input-icon icon-right-group">
+                        <img src="{{url_for('static', path='Images/icons/mic-icon.png')}}" alt="Microphone" class="icon-right">
+                        <img src="{{url_for('static', path='Images/icons/send-icon.png')}}" alt="Send" class="icon-right">
+                    </div>
+                </div>
+            </section>
+            
+        </main>
+    </div>
+
+    {% include 'popup.html' %}
+
+    <script src="{{url_for('static', path='JS/home-page.js')}}"></script>
+    <script src="{{url_for('static', path='JS/popup.js')}}"></script>
+</body>
+</html>
