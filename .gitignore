@@ -1,0 +1,14 @@
+# IDE - PyCharm
+.idea
+
+# IDE - VSCode
+.vscode
+
+# dotenv environment variable files
+.env
+
+# virtual environment
+.venv
+
+# Python bytecode
+__pycache__

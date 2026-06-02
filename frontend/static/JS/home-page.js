@@ -1,3 +1,4 @@
+// sidebar
 const sidebarToggle = document.getElementById('sidebar-toggle');
 const sidebar = document.getElementById('sidebar');
 
@@ -12,3 +13,4 @@ if (sidebarToggle && sidebar) {
         sidebar.classList.remove('show-sidebar');
     });
 }
+// end of sidebar
