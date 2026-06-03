@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from backend.routes.user_route import router as user_router
@@ -13,6 +14,21 @@ templates_dir = "frontend/templates"
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+# 1. Define the origins that are allowed to talk to your backend
+origins = [
+    "http://127.0.0.1:8000",  # Your local address
+    "http://localhost:8000",
+]
+
+# 2. Add the middleware to your FastAPI application
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,          # Allows your frontend origins
+    allow_credentials=True,
+    allow_methods=["*"],            # Allows POST, GET, OPTIONS, etc.
+    allow_headers=["*"],            # Allows Authorization and Content-Type headers
+)
 
 # Mount the 'static' folder to serve CSS and JS
 app.mount("/static", StaticFiles(directory=static_dir), name="static")

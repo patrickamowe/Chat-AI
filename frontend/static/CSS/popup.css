@@ -106,3 +106,10 @@
 .modal-content button[type="submit"]:hover {
     background-color: #0d8c6d; /* Slightly darker green on hover */
 }
+
+/* --- Error/Message Styling --- */
+.error-message {
+    margin-top: 15px; 
+    font-weight: bold;
+    text-align: center;
+}
