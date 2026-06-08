@@ -1,9 +1,15 @@
-import { signIn, signUp } from './api-call.js';
-import { SIGNIN_URL, SIGNUP_URL } from './constants.js';
+import { signIn, signUp, signOut} from './api-call.js';
+import { SIGNIN_URL, SIGNUP_URL, SIGNOUT_URL } from './constants.js';
+import { checkAuthState , tokenIsValid} from './helper-fun.js';
+
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Initial check to set the correct UI state on page load
+    checkAuthState();
+
     const signinForm = document.getElementById('signin-form');
     const signupForm = document.getElementById('signup-form');
+    const logoutBtn = document.getElementById('logout-btn');
 
     
     if (signinForm) {
@@ -26,10 +32,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     signinMessage.style.color = "green";
                     signinMessage.innerText = response.message;
 
-                    // Securely store fresh rotating tokens
-                    localStorage.setItem('access_token', response.content.access_token);
-                    localStorage.setItem('refresh_token', response.content.refresh_token);
-                    
+                    // Securely store tokens in localStorage for session management
+                    // store only if the response contains the expected tokens
+                    if (
+                        response.content 
+                        && response.content.access_token 
+                        && response.content.refresh_token
+                    ) {
+
+                        localStorage.setItem('access_token', response.content.access_token);
+                        localStorage.setItem('refresh_token', response.content.refresh_token);
+                        
+                    }
+
                     // Redirect to home dashboard after a brief delay
                     setTimeout(() => { window.location.href = '/'; }, 1000);
 
@@ -100,6 +115,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 signupMessage.innerText = "System error: Unable to complete your registration right now.";
                 console.error("Signup network error details:", error);
             }
+        });
+    }
+
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+            // Make API call to invalidate the refresh token and access token on the server 
+            const validToken = await tokenIsValid();
+            
+            if (validToken) {
+                const accessToken = localStorage.getItem('access_token');
+                
+                try {
+                    // Make API call to invalidate the refresh token and access token on the server
+                    const response = await signOut(accessToken, SIGNOUT_URL);
+                    
+                    if (response.success) {
+                        console.log("Server session cleared cleanly.");
+                    } else {
+                        console.warn("Server-side signout returned an error envelope:", response.message);
+                    }
+                } catch (Error) {
+                    // Log the error but continue logging the user out locally anyway
+                    console.error("Network failure during server signout sync:", Error);
+                }
+            }
+
+            // Always clear tokens from localStorage to log the user out on the client side
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            
+            // Redirect to home page after logout
+            window.location.href = '/';
         });
     }
 });

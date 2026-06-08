@@ -1,4 +1,4 @@
-# app/utils/auth_utils.py
+# app/utils/auth.py
 import hashlib
 from datetime import datetime, timedelta, timezone
 import jwt
@@ -10,9 +10,7 @@ from pwdlib import PasswordHash
 from typing import Optional
 
 from ..core.config import settings
-
-# Importing your newly named, intuitive token payload schemas
-from ..schemas.request_schemas import AccessTokenJWTPayload, RefreshTokenJWTPayload
+from ..schemas.auth import AccessTokenJWTPayload, RefreshTokenJWTPayload
 
 # Initialize password hashing and token extraction setups
 password_hash = PasswordHash.recommended()
@@ -58,7 +56,7 @@ def create_refresh_token(user_id: int) -> str:
     Generates a long-lived refresh token used exclusively to request new access tokens when they expire.
     """
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
-    to_encode = {"sub": str(user_id), "exp": expire}
+    to_encode = {"user_id": user_id, "exp": expire}
     return jwt.encode(to_encode, settings.JWT_REFRESH_SECRET, algorithm=settings.JWT_ALGORITHM)
 
 
@@ -77,13 +75,25 @@ async def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> Opt
         return None
 
 
-async def validate_refresh_token(token: str) -> int:
+async def validate_refresh_token(token: str) -> RefreshTokenJWTPayload :
     """
-    Decodes an incoming refresh token string and extracts the user's unique ID.
+    Decodes an incoming refresh token string and extracts the user's data.
 
+    Return user's data.
     If the token is expired or altered, it throws an error that our route's
     try-except block can catch instantly.
     """
     pay_load = jwt.decode(token, settings.JWT_REFRESH_SECRET, algorithms=[settings.JWT_ALGORITHM])
-    token_data = RefreshTokenJWTPayload(**pay_load)
-    return int(token_data.sub)
+
+    return  RefreshTokenJWTPayload(**pay_load)
+
+async def validate_access_token(token: str) -> AccessTokenJWTPayload :
+    """
+    Decodes an incoming access token string and extracts the user's data.
+
+    Return user's data
+    If the token is expired or altered, it throws an error that our route's
+    try-except block can catch instantly.
+    """
+    pay_load = jwt.decode(token, settings.JWT_ACCESS_SECRET, algorithms=[settings.JWT_ALGORITHM])
+    return  AccessTokenJWTPayload(**pay_load)

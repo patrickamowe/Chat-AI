@@ -6,16 +6,15 @@ from typing import Optional
 
 from ..db.database import get_db
 from ..models.model import User
-
-# Import your clean, descriptive schemas
-from ..schemas.request_schemas import AccessTokenJWTPayload, UserRegistrationRequest
-from ..schemas.response_schemas import (
-    UserRegistrationSuccessEnvelope,
+from ..schemas.auth import (
+    AccessTokenJWTPayload,
     UserProfileFetchSuccessEnvelope,
-    APIFailureEnvelope,
-    UserProfileResponseData
+    UserProfileResponseData,
+    UserRegistrationRequest,
+    UserRegistrationSuccessEnvelope,
 )
-from ..utils.auth_utils import get_password_hash, get_current_user
+from ..schemas.base import APIFailureEnvelope
+from ..utils.auth import get_current_user, get_password_hash
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -23,23 +22,22 @@ router = APIRouter(prefix="/users", tags=["Users"])
 @router.post(
     "/signup",
     response_model=UserRegistrationSuccessEnvelope,
+    summary="User Registration",
     responses={
-        400: {"model": APIFailureEnvelope, "description": "Username already taken"},
-        500: {"model": APIFailureEnvelope, "description": "Database or server failure"}
+        400: {"model": APIFailureEnvelope, "description": "Username already taken."},
+        500: {"model": APIFailureEnvelope, "description": "Internal server error."}
     }
 )
 async def create_user(
-        user_data: UserRegistrationRequest,
-        db: Session = Depends(get_db)
+    user_data: UserRegistrationRequest,
+    db: Session = Depends(get_db)
 ):
     """
-    Registers a brand-new user account in our system.
-
-    It checks if the username is already taken, hashes the plain-text password 
-    safely, and saves the new profile record to the database.
+    Registers a new user account.
+    Checks if the username is unique, hashes the password, and saves the user record.
     """
     try:
-        # Check the database if user with the username already exists
+        # Check if the username is already taken
         existing_user = db.query(User).filter(User.username == user_data.username).first()
         if existing_user:
             return JSONResponse(
@@ -51,7 +49,7 @@ async def create_user(
                 ).model_dump()
             )
 
-        # Hash password and store user details in the DB
+        # Hash the password and save the new user
         new_user = User(
             username=user_data.username,
             password=get_password_hash(user_data.password),
@@ -80,29 +78,25 @@ async def create_user(
 
 
 @router.get(
-    "/{user_id}",
+    "/profile",
     response_model=UserProfileFetchSuccessEnvelope,
+    summary="Get User Profile",
     responses={
-        401: {"model": APIFailureEnvelope, "description": "Invalid, expired, or missing access token"},
-        403: {"model": APIFailureEnvelope, "description": "User attempting to spy on another profile"},
-        404: {"model": APIFailureEnvelope, "description": "Target profile does not exist"},
-        500: {"model": APIFailureEnvelope, "description": "Server or database crash"}
+        401: {"model": APIFailureEnvelope, "description": "Invalid or missing access token."},
+        404: {"model": APIFailureEnvelope, "description": "User profile not found."},
+        500: {"model": APIFailureEnvelope, "description": "Internal server error."}
     }
 )
-async def get_user(
-        user_id: int,
-        db: Session = Depends(get_db),
-        authenticated_user: Optional[AccessTokenJWTPayload] = Depends(get_current_user)
+async def get_user_info(
+    db: Session = Depends(get_db),
+    auth_user: Optional[AccessTokenJWTPayload] = Depends(get_current_user)
 ):
     """
-    Retrieves a single user's profile details using their Unique ID.
-
-    This endpoint is protected; users are blocked from looking up profiles 
-    that do not belong to them.
+    Retrieves the profile details of the currently logged-in user.
     """
     try:
-        # 401 Error: Frontend didn't pass a valid logged-in token
-        if not authenticated_user:
+        # Check if the user is authenticated
+        if not auth_user:
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 content=APIFailureEnvelope(
@@ -112,20 +106,9 @@ async def get_user(
                 ).model_dump()
             )
 
-        # 403 Error: Token is valid, but user_id in token doesn't match the URL path request
-        if authenticated_user.user_id != user_id:
-            return JSONResponse(
-                status_code=status.HTTP_403_FORBIDDEN,
-                content=APIFailureEnvelope(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    success=False,
-                    message="Access denied. You do not have permission to view other users' profiles."
-                ).model_dump()
-            )
+        user = db.query(User).filter(User.id == auth_user.user_id).first()
 
-        user = db.query(User).filter(User.id == user_id).first()
-
-        # 404 Error: Account doesn't exist in the system anymore
+        # Check if the user exists in the database
         if not user:
             return JSONResponse(
                 status_code=status.HTTP_404_NOT_FOUND,

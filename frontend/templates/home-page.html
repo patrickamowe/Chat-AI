@@ -6,6 +6,7 @@
     <title>Home Page</title>
     <link rel="stylesheet" href="{{url_for('static', path='CSS/home-page.css')}}">
     <link rel="stylesheet" href="{{url_for('static', path='CSS/popup.css')}}">
+    <link rel="stylesheet" href="{{url_for('static', path='CSS/auth.css')}}">
 </head>
 <body>
     <div id="app-wrapper">
@@ -20,7 +21,7 @@
                 
                 <div class="menu-item" id="recent-chats-container">
                     <span>Recents chat</span>
-                    <ul class="recent-chats-list">
+                    <ul class="recent-chats-list auth-only">
                         <li class="recent-chat-item">Chat 1</li>
                         <li class="recent-chat-item">Chat 2</li>
                         <li class="recent-chat-item">Chat 3</li>
@@ -30,8 +31,8 @@
 
             <footer class="sidebar-footer">
                 <span class="footer-text">Get responses tailored to you</span>
-                <span class="auth-btn" id="login-btn">Login</span>
-                <span class="auth-btn" id="logout-btn">Logout</span>
+                <span class="auth-btn guest-only" id="login-btn">Login</span>
+                <span class="auth-btn auth-only" id="logout-btn">Logout</span>
             </footer>
         </aside>
 
@@ -46,9 +47,9 @@
                 </div>
                 
                 <div class="user-actions-container">
-                    <a href="/profile"><span id="profile-icon">P</span></a>
-                    <button class="nav-signin-btn" id="openSigninBtn">Sign in</button>
-                    <button class="nav-signup-btn" id="openSignupBtn">Sign up</button>
+                    <a href="/profile" class="auth-only"><span id="profile-icon"></span></a>
+                    <button class="nav-signin-btn guest-only" id="openSigninBtn">Sign in</button>
+                    <button class="nav-signup-btn guest-only" id="openSignupBtn">Sign up</button>
                 </div>
             </header>
 
@@ -74,9 +75,9 @@
 
     {% include 'popup.html' %}
 
-    <script src="{{url_for('static', path='JS/home-page.js')}}"></script>
-    <script src="{{url_for('static', path='JS/popup.js')}}"></script>
+    <script type="module" src="{{url_for('static', path='JS/home-page.js')}}"></script>
     <script type="module" src="{{url_for('static', path='JS/auth.js')}}"></script>
+    <script src="{{url_for('static', path='JS/popup.js')}}"></script>
     
 </body>
 </html>

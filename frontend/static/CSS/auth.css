@@ -1,0 +1,13 @@
+
+.auth-only, .guest-only {
+    display: none !important;
+}
+
+/* These helper classes will be applied dynamically by JavaScript */
+.user-logged-in .auth-only {
+    display: block !important; /* or flex, inline, etc. */
+}
+
+.user-logged-out .guest-only {
+    display: block !important;
+}

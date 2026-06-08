@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: float = 15.0
     REFRESH_TOKEN_EXPIRE_MINUTES: float= 10080.0  # 7 days
 
+    GEMINI_API_KEY: str = "super-secret-key-fallback"
+
     # Tells Pydantic to read from a .env file automatically
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

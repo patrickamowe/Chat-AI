@@ -4,6 +4,7 @@ const signupModal = document.getElementById('signupModal');
 
 const openSigninBtn = document.getElementById('openSigninBtn');
 const openSignupBtn = document.getElementById('openSignupBtn');
+const loginBtn = document.getElementById('login-btn');
 
 const closeSignin = document.getElementById('closeSignin');
 const closeSignup = document.getElementById('closeSignup');
@@ -11,6 +12,7 @@ const closeSignup = document.getElementById('closeSignup');
 // Open Modals
 openSigninBtn.onclick = () => signinModal.style.display = 'flex';
 openSignupBtn.onclick = () => signupModal.style.display = 'flex';
+loginBtn.onclick = () => signinModal.style.display = 'flex';
 
 // Close Modals using the 'X' button
 closeSignin.onclick = () => signinModal.style.display = 'none';

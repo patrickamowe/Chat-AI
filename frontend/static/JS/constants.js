@@ -3,7 +3,8 @@ const SIGNIN_URL = `${API_BASE_URL}/auth/signin`;
 const SIGNOUT_URL = `${API_BASE_URL}/auth/logout`;
 const REFRESH_TOKEN_URL = `${API_BASE_URL}/auth/refresh`;
 const SIGNUP_URL = `${API_BASE_URL}/users/signup`;
-const USER_INFO_URL = `${API_BASE_URL}/users`;
+const USER_INFO_URL = `${API_BASE_URL}/users/profile`;
+const VALIDATE_TOKEN_URL = `${API_BASE_URL}/auth/validate`;
 
 export {
     API_BASE_URL,
@@ -11,5 +12,7 @@ export {
     SIGNOUT_URL,
     REFRESH_TOKEN_URL,
     SIGNUP_URL,
-    USER_INFO_URL
+    USER_INFO_URL,
+    VALIDATE_TOKEN_URL
+
 };

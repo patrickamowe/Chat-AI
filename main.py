@@ -3,8 +3,9 @@ from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from backend.routes.user_route import router as user_router
-from backend.routes.auth_route import router as auth_router
+from backend.routes.user import router as user_router
+from backend.routes.auth import router as auth_router
+from backend.routes.chat import router as chat_router
 from backend.db.database import Base, engine
 
 static_dir = "frontend/static"
@@ -40,6 +41,7 @@ templates = Jinja2Templates(directory=templates_dir)
 # Routes
 app.include_router(auth_router)
 app.include_router(user_router)
+app.include_router(chat_router)
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):

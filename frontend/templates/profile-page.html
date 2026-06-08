@@ -13,7 +13,7 @@
                 <a href="/"><span id="app-logo">Chat-AI</span></a>
             </div>
             <div class="user-actions-container">
-                <a href="/profile"><span id="navbar-profile-icon">P</span></a>
+                <a href="/profile"><span id="navbar-profile-icon"></span></a>
             </div>
         </header>
 
@@ -21,17 +21,17 @@
             <div class="profile-card">
                 
                 <div class="avatar-container">
-                    <div class="avatar">P</div>
+                    <div class="avatar"></div>
                 </div>
 
                 <div class="profile-info-section">
                     <div class="info-group">
                         <span class="info-label">Username</span>
-                        <span class="info-value">Prime</span>
+                        <span class="info-value" id="user-username"></span>
                     </div>
                     <div class="info-group">
                         <span class="info-label">Email Address</span>
-                        <span class="info-value">prime@example.com</span>
+                        <span class="info-value" id="user-email"></span>
                     </div>
                 </div>
 
@@ -45,6 +45,6 @@
         </main>
     </div>
 
-    <script src="{{url_for('static', path='JS/profile-page.js')}}"></script>
+    <script type="module" src="{{url_for('static', path='JS/profile-page.js')}}"></script>
 </body>
 </html>
