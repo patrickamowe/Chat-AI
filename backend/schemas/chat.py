@@ -23,7 +23,7 @@ class MessageResponseData(BaseModel):
     response: str
     created_at: str
 
-class ConversationsInfo(BaseModel):
+class ConversationInfo(BaseModel):
     id: int
     user_id: int
     title: str
@@ -43,7 +43,7 @@ class MessageSendSuccessEnvelope(APIBaseSuccessEnvelope):
     content: MessageResponseData
 
 class ConversationsListSuccessEnvelope(APIBaseSuccessEnvelope):
-    content: List[ConversationsInfo]
+    content: List[ConversationInfo]
 
 class ConversationsDeleteSuccessEnvelope(APIBaseSuccessEnvelope):
     content: Optional[None] = None

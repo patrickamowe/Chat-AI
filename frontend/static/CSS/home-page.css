@@ -14,13 +14,13 @@ body {
 }
 
 /* --- Ultimate Global Anchor Tag Reset --- */
-a, 
-a:link, 
-a:visited, 
-a:hover, 
+a,
+a:link,
+a:visited,
+a:hover,
 a:active {
-    text-decoration: none !important; /* Erases all stubborn browser underlines */
-    color: inherit !important;        /* Prevents clicked links from turning purple */
+    text-decoration: none !important; /* Erases stubborn browser underlines */
+    color: inherit !important;        /* Prevents links from turning purple */
     cursor: pointer;
 }
 
@@ -30,7 +30,7 @@ a:active {
     width: 100vw;
 }
 
-/* --- Sidebar (Desktop) --- */
+/* --- Sidebar (Desktop Layout Definitions) --- */
 #sidebar {
     width: 260px;
     background-color: #000000;
@@ -38,7 +38,7 @@ a:active {
     flex-direction: column;
     padding: 10px 15px;
     border-right: 1px solid #333;
-    transition: left 0.3s ease; /* Enables smooth slide-in animation on mobile */
+    transition: left 0.3s ease; /* Enables smooth slide-in animation on mobile screen sizes */
 }
 
 .sidebar-menu {
@@ -72,7 +72,7 @@ a:active {
     font-size: 0.9rem;
 }
 
-#recent-chats-container span {
+#chats-history-container span {
     font-size: 0.8rem;
     color: #9b9b9b;
     padding: 10px 5px;
@@ -80,25 +80,28 @@ a:active {
     font-weight: 600;
 }
 
-.recent-chats-list {
+.chats-history-list {
     list-style: none;
     padding-left: 5px;
 }
 
-.recent-chat-item {
+.chat-history-item {
     padding: 8px 10px;
     margin-bottom: 4px;
     border-radius: 6px;
     font-size: 0.9rem;
     color: #ececec;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.recent-chat-item:hover {
+.chat-history-item:hover {
     background-color: #212121;
     cursor: pointer;
 }
 
-/* Sidebar Footer */
+/* Sidebar Footer Layout elements */
 .sidebar-footer {
     padding: 10px 0;
     margin-top: auto;
@@ -126,7 +129,7 @@ a:active {
     cursor: pointer;
 }
 
-/* --- Main Content Area --- */
+/* --- Main Content Viewport Area --- */
 #main-chat-area {
     flex: 1;
     display: flex;
@@ -135,7 +138,7 @@ a:active {
     position: relative;
 }
 
-/* Top Navigation Bar */
+/* Top Navigation Header Configuration Rules */
 .top-navbar {
     display: flex;
     justify-content: space-between;
@@ -186,7 +189,7 @@ a:active {
     cursor: pointer;
 }
 
-/* Authentication Buttons */
+/* Authentication Trigger Button Components */
 .nav-signin-btn, .nav-signup-btn {
     padding: 8px 16px;
     border-radius: 20px;
@@ -216,7 +219,7 @@ a:active {
     cursor: pointer;
 }
 
-/* Main Chat Interface */
+/* Main Chat UI Architecture */
 .chat-interface {
     flex: 1;
     display: flex;
@@ -233,11 +236,11 @@ a:active {
     text-align: center;
 }
 
-/* Container styling - matches your input image setup */
+/* Input layout component frame styling wrapper */
 .chat-input-container {
     position: relative;
     display: flex;
-    align-items: center;
+    align-items: flex-end; /* Snaps action group assets gracefully to baseline when expanding */
     background-color: #2a2b32;
     border: 1px solid #4a4b50;
     border-radius: 25px;
@@ -247,23 +250,28 @@ a:active {
     padding: 12px;
 }
 
-/* The actual input field styling */
+/* UPDATED: Refactored and optimized explicitly to support textarea scaling */
 .chat-input {
     width: 100%;
     background: transparent;
     border: none;
     color: white;
     font-size: 16px;
-    padding-left: 35px;  /* Keeps typing space away from your layout icons */
-    padding-right: 70px; 
+    padding-left: 35px;  /* Keeps typing space away from left icon layout bounds */
+    padding-right: 70px; /* Leaves clear margin width for right control button group */
     outline: none;
+
+    /* Textarea behavior stabilizers */
+    resize: none;             /* Disables native desktop resize dragger element handles */
+    font-family: inherit;     /* Forces textarea typography matching app ecosystem definitions */
+    height: 24px;             /* Baseline target design height */
+    max-height: 180px;        /* Limits expansion constraints from running off interface viewports */
+    overflow-y: auto;         /* Displays explicit side viewport scrollbar safely past limit height */
+    line-height: 1.5;
 }
 
-/* Base styles for the icons */
+/* Position mapping properties for operational icons */
 .input-icon {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
     cursor: pointer;
     opacity: 0.7;
     transition: opacity 0.2s;
@@ -274,18 +282,19 @@ a:active {
 }
 
 .icon-left {
+    position: absolute;
     left: 15px;
+    bottom: 14px; /* Sticks precisely near base row axis when textarea stretches upwards */
     width: 20px;
     height: 20px;
 }
 
 .icon-right-group {
+    position: absolute;
     right: 15px;
+    bottom: 14px; /* Keeps the action controls uniform to input area footprint alignments */
     display: flex;
     gap: 12px;
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
 }
 
 .icon-right {
@@ -296,16 +305,115 @@ a:active {
 .icon-left:hover, .icon-right:hover {
     cursor: pointer;
     opacity: 1;
-    background-color: wheat;
 }
 
-/* --- Single, Cleaned Mobile Responsive Layout --- */
+/* --- Active Conversation Layout Transitions --- */
+.chat-interface.chat-active {
+    justify-content: flex-start; /* Shifts positioning alignment down */
+    align-items: stretch;
+    height: calc(100vh - 60px);
+}
+
+/* Hides greeting container instantly once context thread is active */
+.chat-interface.chat-active #greeting-container {
+    display: none !important;
+}
+
+/* Live dynamic scroll message stream component rules */
+.message-stream {
+    display: none; /* Kept hidden until conversation is initialized */
+    flex: 1;
+    overflow-y: auto;
+    width: 100%;
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 20px 0;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.chat-interface.chat-active .message-stream {
+    display: flex;
+}
+
+/* Locks interactive panel container cleanly down at footer baseline when stream mounts */
+.chat-interface.chat-active .chat-input-container {
+    margin-top: auto;
+    margin-bottom: 10px;
+}
+
+/* --- Dialogue Log Render Rows Styles --- */
+.message-row {
+    display: flex;
+    width: 100%;
+}
+.message-row.user-msg { justify-content: flex-end; }
+.message-row.assistant-msg {
+    text-align: justify;
+    hyphens: auto;      /* Automatically inserts hyphens where appropriate */
+}
+
+.msg-bubble {
+    padding: 12px 18px;
+    border-radius: 20px;
+    max-width: 100%;
+    font-size: 0.98rem;
+    line-height: 1.5;
+    word-break: break-word;
+    white-space: pre-wrap; /* Maintains multiline paragraph layouts generated by users */
+}
+
+.user-msg .msg-bubble {
+    background-color: #2f2f2f;
+    color: #ececec;
+    border: 1px solid #4a4b50;
+    border-bottom-right-radius: 4px;
+}
+
+.assistant-msg .msg-bubble {
+    background-color: transparent;
+    color: #ececec;
+    padding-left: 0; /* Modern clean asymmetric layout design rules */
+}
+/* Prevent paragraphs inside the chat bubble from adding double spacing */
+.msg-bubble p {
+    margin: 0 0 8px 0;
+}
+.msg-bubble p:last-child {
+    margin-bottom: 0;
+}
+
+/* Style lists generated by markdown */
+.msg-bubble ul, .msg-bubble ol {
+    margin: 0 0 8px 0;
+    padding-left: 20px;
+}
+
+/* Style code blocks generated by markdown */
+.msg-bubble pre {
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    padding: 10px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: 'Courier New', Courier, monospace;
+    margin: 8px 0;
+}
+
+/* Style inline code segments like `this` */
+.msg-bubble :not(pre) > code {
+    background-color: rgba(0, 0, 0, 0.1);
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-family: monospace;
+}
+
+/* --- Unified Mobile Responsive Configurations --- */
 @media (max-width: 768px) {
-    
-    /* Converts sidebar to fixed overlay layout instead of killing it via display:none */
+
     #sidebar {
         position: fixed;
-        left: -260px; 
+        left: -260px;
         top: 0;
         bottom: 0;
         z-index: 1500;
@@ -327,7 +435,7 @@ a:active {
     }
 
     .menu-burger-btn {
-        display: flex; 
+        display: flex;
         background: transparent;
         border: none;
         cursor: pointer;
@@ -337,7 +445,6 @@ a:active {
         min-width: 24px;
         overflow: hidden;
         color: #ececec;
-        font-size: 0.75rem; 
     }
 
     .menu-burger-btn img {
@@ -355,44 +462,40 @@ a:active {
         font-size: 0.8rem;
     }
 
-    /* --- PURE CENTERED BOX ALIGNMENT FOR MOBILE --- */
     .chat-interface {
         padding: 20px;
         display: flex;
         flex-direction: column;
-        justify-content: center; /* CRUCIAL: Centers both elements vertically in the middle of the screen */
-        align-items: center;     /* CRUCIAL: Centers them horizontally */
-        height: calc(100vh - 60px); /* Fills the viewport beneath the top bar */
+        justify-content: center;
+        align-items: center;
+        height: calc(100vh - 60px);
     }
 
     .greeting-container h3 {
         font-size: 1.6rem;
         text-align: center;
-        margin-bottom: 20px; /* Small, clean gap before the input container hits */
+        margin-bottom: 20px;
     }
 
     .chat-input-container {
-        position: relative; 
+        position: relative;
         width: 100%;
         max-width: 600px;
-        margin: 0;         
-        left: auto;        
-        transform: none;   
+        margin: 0;
+        left: auto;
+        transform: none;
     }
 }
 
-/* Extra safety rule for ultra-narrow viewport screens (like older iPhones) */
 @media (max-width: 380px) {
-    /* If profile icon is active, hide text auth buttons on mobile to avoid row wrapping */
     #profile-icon ~ .nav-signin-btn,
     #profile-icon ~ .nav-signup-btn {
         display: none;
     }
 }
 
-/* --- Desktop Presentation Safeguard --- */
 @media (min-width: 769px) {
     .menu-burger-btn {
-        display: none; /* Safely keep the hamburger menu hidden on screens larger than mobile tablets */
+        display: none; /* Enforces mobile burger assets stay hidden across standard display variants */
     }
 }

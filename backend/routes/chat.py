@@ -1,8 +1,8 @@
 from datetime import datetime
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Path
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, Annotated
 
 from ..db.database import get_db
 from ..models.model import Conversation, Message, User
@@ -17,6 +17,8 @@ from ..schemas.chat import (
     MessageResponseData,
     MessageSendSuccessEnvelope,
     SendMessageRequest,
+    ConversationInfo,
+    MessageRecord
 )
 from ..utils.auth import get_current_user
 from ..utils.gemini import client
@@ -49,19 +51,22 @@ router = APIRouter(prefix="/chat", tags=["Chat"])
     },
 )
 async def send_message(
-    message_request: SendMessageRequest,
-    db: Session = Depends(get_db),
+        message_request: SendMessageRequest,
+        db: Session = Depends(get_db),
+        auth_user: Optional[AccessTokenJWTPayload] = Depends(get_current_user),
 ):
     """
     Handles sending chat messages and routes them into one of three cases:
-    1. Guest Chat (No user_id or conversation_id provided)
-    2. Existing Chat (Both user_id and conversation_id provided)
-    3. New Chat (Only user_id provided, automatically creates a new conversation)
+    1. Guest Chat (No auth token present; volatile context)
+    2. Existing Chat (Valid auth token and conversation_id match; appended to history)
+    3. New Chat (Valid auth token provided, conversation_id is null; creates a thread)
     """
     content = message_request.message
-    user_id = message_request.user_id
     conversation_id = message_request.conversation_id
     timestamp_str = str(datetime.utcnow())
+
+    # Extract secure user ID context from parsed authorization state
+    user_id = auth_user.user_id if auth_user else None
 
     # --- GET GEMINI AI RESPONSE ---
     try:
@@ -78,7 +83,7 @@ async def send_message(
                     status_code=status.HTTP_502_BAD_GATEWAY,
                     success=False,
                     message="The AI engine returned an empty response.",
-                ).model_dump(),
+                ).model_dump(mode="json")
             )
 
     except Exception as e:
@@ -88,39 +93,51 @@ async def send_message(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 success=False,
                 message=f"AI connection failure: {str(e)}",
-                # Render standard percentage/units directly if needed elsewhere
-            ).model_dump(),
+            ).model_dump(mode="json")
         )
 
-    # --- CASE 1: GUEST CHAT (Neither ID provided) ---
-    if user_id is None and conversation_id is None:
+    # --- CASE 1: GUEST CHAT (No authenticated user token found) ---
+    if user_id is None:
         return MessageSendSuccessEnvelope(
             status_code=status.HTTP_200_OK,
             success=True,
             message="Temporary message processed successfully",
             content=MessageResponseData(
-                request=content, response=ai_response, created_at=timestamp_str
+                request=content,
+                response=ai_response,
+                created_at=timestamp_str
             ),
         )
 
-    # --- CASE 2: EXISTING CONVERSATION (Both IDs provided) ---
-    if conversation_id is not None and user_id is not None:
-        user = db.query(User).filter(User.id == user_id).first()
+    # Validate active database existence profiles for authenticated threads
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content=APIFailureEnvelope(
+                status_code=status.HTTP_404_NOT_FOUND,
+                success=False,
+                message="User account could not be found.",
+            ).model_dump(mode="json")
+        )
+
+    # --- CASE 2: EXISTING CONVERSATION (Both context elements valid) ---
+    if conversation_id is not None:
         conversation = (
             db.query(Conversation)
-            .filter(Conversation.id == conversation_id)
+            .filter(Conversation.id == conversation_id, Conversation.user_id == user_id)
             .first()
         )
 
-        # Validation: Verify user and conversation exist
-        if not user or not conversation:
+        # Ensure target thread identity records exist and match incoming owner signatures
+        if not conversation:
             return JSONResponse(
                 status_code=status.HTTP_404_NOT_FOUND,
                 content=APIFailureEnvelope(
                     status_code=status.HTTP_404_NOT_FOUND,
                     success=False,
                     message="User or conversation thread could not be found.",
-                ).model_dump(),
+                ).model_dump(mode="json")
             )
 
         try:
@@ -141,7 +158,7 @@ async def send_message(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     success=False,
                     message=f"Database error while saving message: {str(db_err)}",
-                ).model_dump(),
+                )
             )
 
         return MessageSendSuccessEnvelope(
@@ -149,27 +166,17 @@ async def send_message(
             success=True,
             message="Message added to conversation successfully",
             content=MessageResponseData(
-                request=content, response=ai_response, created_at=timestamp_str
+                request=content,
+                response=ai_response,
+                created_at=timestamp_str,
+                sender=user.username,
             ),
         )
 
-    # --- CASE 3: NEW CONVERSATION (Only user_id provided) ---
-    if user_id is not None and conversation_id is None:
-        user = db.query(User).filter(User.id == user_id).first()
-
-        # Validation: Verify user exists
-        if not user:
-            return JSONResponse(
-                status_code=status.HTTP_404_NOT_FOUND,
-                content=APIFailureEnvelope(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    success=False,
-                    message="User not found. Unable to create conversation.",
-                ).model_dump(),
-            )
-
+    # --- CASE 3: NEW CONVERSATION (Authenticated token active, conversation_id is null) ---
+    else:
         try:
-            # Create the new conversation record first
+            # Provision master conversation header
             conversation = Conversation(
                 user_id=user_id,
                 title=f"Chat with {user.username}",
@@ -177,7 +184,7 @@ async def send_message(
             db.add(conversation)
             db.flush()
 
-            # Create and link the message record
+            # Append historical dialogue entry record
             message = Message(
                 conversation_id=conversation.id,
                 sender=str(user.username),
@@ -195,7 +202,7 @@ async def send_message(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     success=False,
                     message=f"Database error while creating conversation: {str(db_err)}",
-                ).model_dump(),
+                ).model_dump(mode="json")
             )
 
         return MessageSendSuccessEnvelope(
@@ -203,19 +210,12 @@ async def send_message(
             success=True,
             message="New conversation created successfully",
             content=MessageResponseData(
-                request=content, response=ai_response, created_at=timestamp_str
+                request=content,
+                response=ai_response,
+                created_at=timestamp_str,
+                sender=user.username,
             ),
         )
-
-    # --- FALLBACK: INVALID PARAMETER COMBINATIONS ---
-    return JSONResponse(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        content=APIFailureEnvelope(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            success=False,
-            message="Invalid combinations of IDs provided in request parameters.",
-        ).model_dump(),
-    )
 
 
 @router.get(
@@ -239,14 +239,13 @@ async def send_message(
     },
 )
 async def get_conversations(
-    db: Session = Depends(get_db),
-    auth_user: Optional[AccessTokenJWTPayload] = Depends(get_current_user),
+        db: Session = Depends(get_db),
+        auth_user: Optional[AccessTokenJWTPayload] = Depends(get_current_user),
 ):
     """
     Gets a list of all conversations belonging to the logged-in user.
     Returns an empty list `[]` if the user has no history.
     """
-    # Check if the user is logged in
     if not auth_user:
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -254,10 +253,9 @@ async def get_conversations(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 success=False,
                 message="Authentication token is missing or expired.",
-            ).model_dump(),
+            ).model_dump(mode="json"),
         )
 
-    # Check if user exists in database
     user = db.query(User).filter(User.id == auth_user.user_id).first()
     if not user:
         return JSONResponse(
@@ -266,20 +264,31 @@ async def get_conversations(
                 status_code=status.HTTP_404_NOT_FOUND,
                 success=False,
                 message="User account could not be found.",
-            ).model_dump(),
+            ).model_dump(mode="json"),
         )
 
     try:
-        # Get all conversations for this user
         conversations = (
-            db.query(Conversation).filter(Conversation.user_id == user.id).all()
+            db.query(Conversation)
+            .filter(Conversation.user_id == user.id)
+            .order_by(Conversation.created_at.desc())
+            .all()
         )
+
+        formatted_conversations = [
+            ConversationInfo(
+                id=int(conversation.id),
+                user_id=int(conversation.user_id),
+                title=str(conversation.title),
+                created_at=str(conversation.created_at)
+            ).model_dump(mode="json") for conversation in conversations
+        ]
 
         return ConversationsListSuccessEnvelope(
             status_code=status.HTTP_200_OK,
             success=True,
             message="User conversations fetched successfully.",
-            content=conversations,
+            content=formatted_conversations,
         )
 
     except Exception as e:
@@ -289,7 +298,7 @@ async def get_conversations(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 success=False,
                 message=f"Database error while fetching conversations: {str(e)}",
-            ).model_dump(),
+            ).model_dump(mode="json"),
         )
 
 
@@ -314,8 +323,8 @@ async def get_conversations(
     },
 )
 async def delete_conversations(
-    db: Session = Depends(get_db),
-    auth_user: Optional[AccessTokenJWTPayload] = Depends(get_current_user),
+        db: Session = Depends(get_db),
+        auth_user: Optional[AccessTokenJWTPayload] = Depends(get_current_user),
 ):
     """
     Permanently deletes all conversation history and messages for the logged-in user.
@@ -328,7 +337,7 @@ async def delete_conversations(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 success=False,
                 message="Authentication token is missing or invalid.",
-            ).model_dump(),
+            )
         )
 
     user = db.query(User).filter(User.id == auth_user.user_id).first()
@@ -339,16 +348,13 @@ async def delete_conversations(
                 status_code=status.HTTP_404_NOT_FOUND,
                 success=False,
                 message="User account could not be found.",
-            ).model_dump(),
+            )
         )
 
     try:
-        # Delete conversations (Model cascades will clean up messages automatically)
         db.query(Conversation).filter(Conversation.user_id == user.id).delete(
             synchronize_session=False
         )
-
-        # Save changes to the database
         db.commit()
 
         return ConversationsDeleteSuccessEnvelope(
@@ -365,21 +371,17 @@ async def delete_conversations(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 success=False,
                 message=f"Database error while deleting conversations: {str(db_err)}",
-            ).model_dump(),
+            )
         )
 
 
 @router.get(
-    "/conversation",
+    "/conversation/{conversation_id}",
     response_model=ConversationDetailsSuccessEnvelope,
     status_code=status.HTTP_200_OK,
     summary="Get Messages from a Single Conversation",
     responses={
         401: {"model": APIFailureEnvelope, "description": "Unauthorized"},
-        403: {
-            "model": APIFailureEnvelope,
-            "description": "Forbidden: You do not access to this conversation.",
-        },
         404: {
             "model": APIFailureEnvelope,
             "description": "Not Found: Conversation does not exist.",
@@ -391,9 +393,9 @@ async def delete_conversations(
     },
 )
 async def get_conversation(
-    conversation_request: ConversationRequest = Depends(),  # Maps fields to query parameters
-    db: Session = Depends(get_db),
-    auth_user: Optional[AccessTokenJWTPayload] = Depends(get_current_user),
+        conversation_id: Annotated[int, Path(title="The ID of the conversation to get", ge=1)],
+        db: Session = Depends(get_db),
+        auth_user: Optional[AccessTokenJWTPayload] = Depends(get_current_user),
 ):
     """
     Gets the full message history for a specific conversation ID.
@@ -406,18 +408,16 @@ async def get_conversation(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 success=False,
                 message="Authentication token is missing or invalid.",
-            ).model_dump(),
+            ).model_dump(mode="json"),
         )
 
     try:
-        # Fetch the conversation record
         conversation = (
             db.query(Conversation)
-            .filter(Conversation.id == conversation_request.conversation_id)
+            .filter(Conversation.id == conversation_id)
             .first()
         )
 
-        # Validation: Verify the conversation exists
         if not conversation:
             return JSONResponse(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -425,32 +425,31 @@ async def get_conversation(
                     status_code=status.HTTP_404_NOT_FOUND,
                     success=False,
                     message="Conversation record could not be found.",
-                ).model_dump(),
+                ).model_dump(mode="json"),
             )
 
-        # Security: Verify ownership to block unauthorized access
-        if conversation.user_id != auth_user.user_id:
-            return JSONResponse(
-                status_code=status.HTTP_403_FORBIDDEN,
-                content=APIFailureEnvelope(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    success=False,
-                    message="Access Denied: You do not own this conversation.",
-                ).model_dump(),
-            )
-
-        # Get all messages inside this conversation
         messages = (
             db.query(Message)
             .filter(Message.conversation_id == conversation.id)
             .all()
         )
 
+        formatted_message = [
+            MessageRecord(
+                id=int(message_record.id),
+                conversation_id=int(message_record.conversation_id),
+                sender=str(message_record.sender),
+                content=str(message_record.content),
+                response=str(message_record.response),
+                created_at=str(message_record.created_at),
+            ) for message_record in messages
+        ]
+
         return ConversationDetailsSuccessEnvelope(
             status_code=status.HTTP_200_OK,
             success=True,
             message="Conversation messages loaded successfully.",
-            content=messages,
+            content=formatted_message,
         )
 
     except Exception as e:
@@ -460,21 +459,17 @@ async def get_conversation(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 success=False,
                 message=f"Database error while loading conversation: {str(e)}",
-            ).model_dump(),
+            ).model_dump(mode="json"),
         )
 
 
 @router.delete(
-    "/conversation",
+    "/conversation/{conversation_id}",
     response_model=ConversationDeleteSuccessEnvelope,
     status_code=status.HTTP_200_OK,
     summary="Delete a Single Conversation",
     responses={
         401: {"model": APIFailureEnvelope, "description": "Unauthorized"},
-        403: {
-            "model": APIFailureEnvelope,
-            "description": "Forbidden: You are not authorized to delete this conversation.",
-        },
         404: {
             "model": APIFailureEnvelope,
             "description": "Not Found: Conversation does not exist.",
@@ -486,9 +481,9 @@ async def get_conversation(
     },
 )
 async def delete_conversation(
-    conversation_request: ConversationRequest,  # Passed inside JSON Body payload
-    db: Session = Depends(get_db),
-    auth_user: Optional[AccessTokenJWTPayload] = Depends(get_current_user),
+        conversation_id:Annotated[int, Path(title="The ID of the conversation to delete", ge=1)],
+        db: Session = Depends(get_db),
+        auth_user: Optional[AccessTokenJWTPayload] = Depends(get_current_user),
 ):
     """
     Permanently deletes a single conversation by its ID.
@@ -501,18 +496,16 @@ async def delete_conversation(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 success=False,
                 message="Authentication token is missing or invalid.",
-            ).model_dump(),
+            ),
         )
 
     try:
-        # Locate the conversation record
         conversation = (
             db.query(Conversation)
-            .filter(Conversation.id == conversation_request.conversation_id)
+            .filter(Conversation.id == conversation_id)
             .first()
         )
 
-        # Validation: Verify it exists
         if not conversation:
             return JSONResponse(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -520,21 +513,9 @@ async def delete_conversation(
                     status_code=status.HTTP_404_NOT_FOUND,
                     success=False,
                     message="Conversation not found.",
-                ).model_dump(),
+                ),
             )
 
-        # Security: Verify ownership before deleting
-        if conversation.user_id != auth_user.user_id:
-            return JSONResponse(
-                status_code=status.HTTP_403_FORBIDDEN,
-                content=APIFailureEnvelope(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    success=False,
-                    message="Access Denied: You are not authorized to delete this conversation.",
-                ).model_dump(),
-            )
-
-        # Delete conversation (Cascades clean up messages automatically)
         db.delete(conversation)
         db.commit()
 
@@ -552,5 +533,5 @@ async def delete_conversation(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 success=False,
                 message=f"Database error while deleting conversation: {str(db_err)}",
-            ).model_dump(),
+            ),
         )

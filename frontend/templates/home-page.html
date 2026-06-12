@@ -10,22 +10,18 @@
 </head>
 <body>
     <div id="app-wrapper">
-        
+
         <aside id="sidebar">
             <div class="sidebar-header"></div>
-            
+
             <nav class="sidebar-menu">
                 <div class="menu-item" id="new-chat-btn">
                     <span>New chat</span>
                 </div>
-                
-                <div class="menu-item" id="recent-chats-container">
-                    <span>Recents chat</span>
-                    <ul class="recent-chats-list auth-only">
-                        <li class="recent-chat-item">Chat 1</li>
-                        <li class="recent-chat-item">Chat 2</li>
-                        <li class="recent-chat-item">Chat 3</li>
-                    </ul>
+
+                <div class="menu-item" id="chats-history-container">
+                    <span>Chat history</span>
+                    <ul class="chats-history-list auth-only" id="user-conversations"></ul>
                 </div>
             </nav>
 
@@ -37,15 +33,15 @@
         </aside>
 
         <main id="main-chat-area">
-            
+
             <header class="top-navbar">
-                <div class="brand-container"> 
+                <div class="brand-container">
                     <button id="sidebar-toggle" class="menu-burger-btn">
                         <img src="{{url_for('static', path='Images/icons/menu-icon.png')}}" alt="Menu">
                     </button>
                     <span id="app-logo"><a href="/">Chat-AI</a></span>
                 </div>
-                
+
                 <div class="user-actions-container">
                     <a href="/profile" class="auth-only"><span id="profile-icon"></span></a>
                     <button class="nav-signin-btn guest-only" id="openSigninBtn">Sign in</button>
@@ -53,31 +49,33 @@
                 </div>
             </header>
 
-            <section class="chat-interface">
-                <div class="greeting-container">
+            <section class="chat-interface" id="chat-interface">
+
+                <div class="greeting-container" id="greeting-container">
                     <h3>What is on your mind?</h3>
                 </div>
-                
+
+                <div id="message-stream" class="message-stream"></div>
+
                 <div class="chat-input-container">
                     <img src="{{url_for('static', path='Images/icons/add-file-icon.png')}}" alt="Add" class="input-icon icon-left">
 
-                    <input type="text" placeholder="Ask anything" class="chat-input">
+                    <textarea placeholder="Ask anything" class="chat-input" id="chat-input" rows="1"></textarea>
 
                     <div class="input-icon icon-right-group">
                         <img src="{{url_for('static', path='Images/icons/mic-icon.png')}}" alt="Microphone" class="icon-right">
-                        <img src="{{url_for('static', path='Images/icons/send-icon.png')}}" alt="Send" class="icon-right">
+                        <img src="{{url_for('static', path='Images/icons/send-icon.png')}}" alt="Send" class="icon-right" id="send-btn">
                     </div>
                 </div>
             </section>
-            
+
         </main>
     </div>
 
     {% include 'popup.html' %}
-
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script type="module" src="{{url_for('static', path='JS/home-page.js')}}"></script>
     <script type="module" src="{{url_for('static', path='JS/auth.js')}}"></script>
     <script src="{{url_for('static', path='JS/popup.js')}}"></script>
-    
 </body>
 </html>

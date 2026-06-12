@@ -15,9 +15,7 @@ async function signIn(username, password, url) {
         body: JSON.stringify(data)
     });
 
-    const response = await request.json();
-
-    return response;
+    return await request.json();
 }
 
 
@@ -34,9 +32,7 @@ async function signOut(access_token, url) {
     });
 
     // Parse our uniform backend envelope
-    const response = await request.json();
-
-    return response;
+    return await request.json();
 }
 
 
@@ -52,9 +48,7 @@ async function getUserInfo(access_token, url) {
         }
     });
 
-    const response = await request.json();
-
-    return response;
+    return await request.json();
 }
 
 async function signUp(username, password, email, url) {
@@ -75,9 +69,7 @@ async function signUp(username, password, email, url) {
         body: JSON.stringify(data)
     });
 
-    const response = await request.json();
-
-    return response;
+    return await request.json();
 }
 
 async function refreshToken(refresh_token, url) {
@@ -96,9 +88,7 @@ async function refreshToken(refresh_token, url) {
         body: JSON.stringify(data)
     });
 
-    const response = await request.json();
-
-    return response;
+    return await request.json();
 }
 
 async function validateAccessToken(access_token, url) {
@@ -117,16 +107,24 @@ async function validateAccessToken(access_token, url) {
         body: JSON.stringify(data)
     });
 
-    const response = await request.json();
-
-    return response;
+    return await request.json();
 }
 
-async function chat(message, access_token, url) {
+async function chat(query, url, access_token, conversation_id=null) {
+    // This function is use by the frontend to get the
+    // Gemini response
+    let data;
 
-    const data = {
-        message: message
-    };
+    if (conversation_id) {
+        data = {
+            message: query,
+            conversation_id: conversation_id
+        };
+    } else {
+        data = {
+            message: query
+        }
+    }
 
     const request = await fetch(url, {
         method: 'POST',
@@ -137,18 +135,12 @@ async function chat(message, access_token, url) {
         body: JSON.stringify(data)
     });
 
-    const response = await request.json();
-
-    return response;
+    return await request.json();
 
 }
 
 async function getConversation(conversation_id, access_token, url) {
     // This function is used by the frontend to get a specific user conversation.
-
-    const data = {
-        conversation_id: conversation_id
-    };
 
     const request = await fetch(url, {
         method: 'GET',
@@ -156,32 +148,23 @@ async function getConversation(conversation_id, access_token, url) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${access_token}`
         },
-        body: JSON.stringify(data)
     });
 
-    const response = await request.json();
-
-    return response;
+    return await request.json();
 }
 
 async function deleteConversation(conversation_id, access_token, url) {
     // This function is used by the frontend to delete a specific user conversation.
-
-    const data = {
-        conversation_id: conversation_id
-    };
 
     const request = await fetch(url, {
         method: 'DELETE',
         headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${access_token}`
-        }
+        },
     });
 
-    const response = await request.json();
-
-    return response;
+    return await request.json();
 }
 
 async function getConversations(access_token, url) {
@@ -195,9 +178,7 @@ async function getConversations(access_token, url) {
         }
     });
 
-    const response = await request.json();
-
-    return response;
+    return await request.json();
 }
 
 async function deleteConversations(access_token, url) {
@@ -211,9 +192,7 @@ async function deleteConversations(access_token, url) {
         }
     });
 
-    const response = await request.json();
-
-    return response;
+    return await request.json();
 }
 
 export {
