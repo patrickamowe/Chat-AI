@@ -43,8 +43,8 @@ class Message(Base):
     id = Column(Integer, primary_key=True, nullable=False, index=True)
     conversation_id = Column(Integer, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False)
     sender = Column(String(20), nullable=False)  # "user-username""
-    content = Column(Text, nullable=False) # The actual message content
-    response = Column(Text, nullable=False) # The AI's response to the message
+    user_prompt= Column(Text, nullable=False) # The actual message content
+    AI_response = Column(Text, nullable=False) # The AI's response to the message
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     conversation = relationship("Conversation", back_populates="messages")

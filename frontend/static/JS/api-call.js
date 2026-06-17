@@ -117,12 +117,12 @@ async function chat(query, url, access_token, conversation_id=null) {
 
     if (conversation_id) {
         data = {
-            message: query,
+            user_prompt: query,
             conversation_id: conversation_id
         };
     } else {
         data = {
-            message: query
+            user_prompt: query
         }
     }
 

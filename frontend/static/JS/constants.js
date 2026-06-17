@@ -20,5 +20,4 @@ export {
     CONVERSATIONS_URL,
     CONVERSATION_URL,
     MESSAGE_URL
-
 };

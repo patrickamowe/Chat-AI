@@ -1,17 +1,14 @@
 import { signIn, signUp, signOut} from './api-call.js';
 import { SIGNIN_URL, SIGNUP_URL, SIGNOUT_URL } from './constants.js';
-import { checkAuthState , tokenIsValid} from './helper-fun.js';
+import { checkAuthState , tokenIsValid} from './auth-helper-fun.js';
 
 
 document.addEventListener('DOMContentLoaded', () => {
     // Initial check to set the correct UI state on page load
     checkAuthState();
 
+    // === SIGNIN FORM SECTION ===
     const signinForm = document.getElementById('signin-form');
-    const signupForm = document.getElementById('signup-form');
-    const logoutBtn = document.getElementById('logout-btn');
-
-    
     if (signinForm) {
         signinForm.addEventListener('submit', async (event) => {
             event.preventDefault(); // Prevent page reload on form submission
@@ -63,7 +60,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    
+    // === SIGNUP FORM SECTION ===
+    const signupForm = document.getElementById('signup-form');
     if (signupForm) {
         signupForm.addEventListener('submit', async (event) => {
             event.preventDefault(); // Prevent page reload on form submission
@@ -118,6 +116,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // === LOGOUT SECTION ===
+    const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
             // Make API call to invalidate the refresh token and access token on the server 

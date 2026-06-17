@@ -1,4 +1,4 @@
-import { userDetails} from './helper-fun.js';
+import { userDetails} from './profile-helper-fun.js';
 
 const userUsername = document.getElementById("user-username");
 const userEmail = document.getElementById("user-email");
