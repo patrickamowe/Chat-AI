@@ -1,17 +1,16 @@
 import {
     getUserConversations,
-    getUserConversation,
-    appendMessageBubble,
-    scrollToBottom,
     appendHistoryItemToSidebar,
-    handleQuerySubmission
+    handleQuerySubmission,
+    loadActiveMessages
 } from './home-helper-fun.js';
 import { userDetails } from "./profile-helper-fun.js";
 
 // =========================================================================
 // GLOBAL APPLICATION STATE DEFINITIONS
 // =========================================================================
-let currentConversationId = null;
+// Pull from sessionStorage so state is isolated strictly to THIS tab
+let currentConversationId = sessionStorage.getItem('active_conversation_id') || null;
 
 /**
  * Main application initializer orchestration loop binding listeners
@@ -22,7 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // === REUSABLE/SHARED ELEMENT LOCATORS ===
     const chatInterface = document.getElementById('chat-interface');
     const messageStream = document.getElementById('message-stream');
-    const ulConversations = document.getElementById("user-conversations");
+    let ulConversations = document.getElementById("user-conversations");
     const chatInput = document.getElementById('chat-input');
     const sendBtn = document.getElementById('send-btn');
 
@@ -31,13 +30,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const sidebar = document.getElementById('sidebar');
     const mainChatArea = document.getElementById('main-chat-area');
     if (sidebarToggle && sidebar) {
-        // Intercept viewport interaction requests to trigger sliding mobile panels
         sidebarToggle.addEventListener('click', (e) => {
             e.stopPropagation();
             sidebar.classList.toggle('show-sidebar');
         });
 
-        // Safely close context drawer if user interacts outside structural margins
         mainChatArea?.addEventListener('click', () => {
             sidebar.classList.remove('show-sidebar');
         });
@@ -53,19 +50,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (info?.firstLetter) {
                 profileIcon.innerText = info.firstLetter;
             } else {
-                console.warn("User profile details are inactive (App serving in standard Guest variant state).");
+                console.warn("User profile details are inactive (Guest state).");
             }
         } catch (err) {
             console.error("Failed fetching user profile details :", err);
         }
-    } else {
-        console.warn("Profile icon element not found inside current view.");
     }
 
     // === CHAT HISTORY SELECTION SECTION ===
     if (ulConversations) {
         try {
-            // Direct background sync pipeline downloading records history logs
             const history = await getUserConversations();
             if (history && Array.isArray(history)) {
                 ulConversations.innerHTML = '';
@@ -73,6 +67,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } catch (err) {
             console.error("Failed fetching chat history logs:", err);
+        }
+
+        // If a conversation ID survived a refresh inside this specific tab, autoload it
+        if (currentConversationId) {
+            chatInterface?.classList.add('chat-active');
+            await loadActiveMessages(currentConversationId, messageStream);
         }
 
         // Capture targeting clicks using optimized operational event delegation
@@ -83,29 +83,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (!conversationId) return;
 
                 currentConversationId = conversationId;
+                // Save to sessionStorage to prevent leaking to other tabs
+                sessionStorage.setItem('active_conversation_id', conversationId);
+
                 chatInterface?.classList.add('chat-active');
-
-                if (messageStream) messageStream.innerHTML = '';
-
-                try {
-                    const responseData = await getUserConversation(conversationId);
-                    const messageList = Array.isArray(responseData) ? responseData : (responseData?.content || []);
-
-                    // Distribute chronological dialogue rows smoothly within interactive stream viewport
-                    messageList.forEach(msg => {
-                        if (msg.user_prompt) {
-                            appendMessageBubble(messageStream, 'user', msg.user_prompt);
-                        }
-                        if (msg.AI_response) {
-                            appendMessageBubble(messageStream, 'assistant', msg.AI_response);
-                        }
-                    });
-
-                    scrollToBottom(messageStream);
-                } catch (err) {
-                    console.error("Could not download old structural message logs context:", err);
-                    appendMessageBubble(messageStream, 'assistant', "Error: Failed downloading chat context logs.");
-                }
+                await loadActiveMessages(conversationId, messageStream);
             }
         });
     } else {
@@ -114,8 +96,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // === CHAT INPUT & SUBMISSION ENGINE SECTION ===
     if (chatInput || sendBtn) {
-
-        // Helper package to run inside execution bindings
         const executeSubmission = async () => {
             const newId = await handleQuerySubmission({
                 chatInput,
@@ -124,9 +104,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 ulConversations,
                 currentConversationId
             });
-            // If the query setup initiated a completely new thread, sync state records
+
             if (newId) {
                 currentConversationId = newId;
+                // Save newly started thread ID to sessionStorage
+                sessionStorage.setItem('active_conversation_id', newId);
             }
         };
 
@@ -142,13 +124,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        // Dynamic processing listener to stretch or scale tracking heights as lines extend
         chatInput?.addEventListener('input', () => {
             chatInput.style.height = 'auto';
             chatInput.style.height = (chatInput.scrollHeight) + 'px';
         });
-    } else {
-        console.warn("Chat input or send button elements not found inside current view.");
     }
 
     // === NEW CHAT CONTROL SECTION ===
@@ -156,15 +135,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (newChatBtn) {
         newChatBtn.addEventListener('click', () => {
             currentConversationId = null;
+            // Safely drop the session token when starting completely fresh
+            sessionStorage.removeItem('active_conversation_id');
+
             chatInterface?.classList.remove('chat-active');
             if (messageStream) messageStream.innerHTML = '';
 
             if (chatInput) {
                 chatInput.value = '';
-                chatInput.style.height = '24px'; // Resets structural baseline heights back to single row specs
+                chatInput.style.height = '24px';
             }
         });
-    } else {
-        console.warn("New chat button element not found inside current view.");
     }
 });

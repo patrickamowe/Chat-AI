@@ -1,0 +1,27 @@
+<div id="editProfileModal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" id="closeEditProfile">&times;</span>
+        <h2>Edit Profile</h2>
+        <form id="edit-profile-form">
+            <input type="text" name="username" placeholder="Username" id="profile-username" required autocomplete="username"><br><br>
+            <input type="email" name="email" placeholder="Email" id="profile-email" required autocomplete="current-email"><br><br>
+            <button type="submit" id="edit-profile-btn">Submit</button>
+        </form>
+
+        <div id="edit-profile-message" class="error-message"></div>
+    </div>
+</div>
+
+<div id="changePasswordModal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" id="closeChangePassword">&times;</span>
+        <h2>Change Password</h2>
+        <form id="change-password-form">
+            <input type="password" name="password" placeholder="Password" id="user-password" required><br><br>
+            <input type="password" name="new-password" placeholder="New Password" id="user-new-password" required><br><br>
+            <button type="submit" id="change-password-btn">Submit</button>
+        </form>
+
+        <div id="change-password-message" class="error-message"></div>
+    </div>
+</div>

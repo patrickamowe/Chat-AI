@@ -1,11 +1,13 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from backend.routes.user import router as user_router
 from backend.routes.auth import router as auth_router
 from backend.routes.chat import router as chat_router
+from backend.schemas.base import APIFailureEnvelope
 from backend.db.database import Base, engine
 
 static_dir = "frontend/static"
@@ -42,6 +44,24 @@ templates = Jinja2Templates(directory=templates_dir)
 app.include_router(auth_router)
 app.include_router(user_router)
 app.include_router(chat_router)
+
+
+@app.exception_handler(HTTPException)
+async def custom_http_exception_handler(request: Request, exc: HTTPException):
+    """
+    Global handler to catch all HTTPEvceptions and format them
+    using the standardized APIFailureEnvelope.
+    """
+    envelope = APIFailureEnvelope(
+        status_code=exc.status_code,
+        success=False,
+        message=str(exc.detail)
+    )
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=envelope.model_dump()
+    )
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):

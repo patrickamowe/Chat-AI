@@ -12,3 +12,6 @@
 
 # Python bytecode
 __pycache__
+
+# Alembic Migrations files
+alembic/versions

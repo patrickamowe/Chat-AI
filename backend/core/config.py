@@ -8,8 +8,6 @@ class Settings(BaseSettings):
     JWT_ACCESS_SECRET: str = "super-secret-access-key-fallback"
     JWT_REFRESH_SECRET: str = "another-super-secret-refresh-key-fallback"
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: float = 15.0
-    REFRESH_TOKEN_EXPIRE_MINUTES: float= 10080.0  # 7 days
 
     GEMINI_API_KEY: str = "super-secret-key-fallback"
 

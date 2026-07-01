@@ -1,13 +1,13 @@
 /* --- Modal Overlay Background --- */
 .modal {
-    display: none; /* Hidden by default; your JS will change this to 'flex' */
+    display: none;
     position: fixed;
-    z-index: 1000; /* Ensures the popup sits on top of everything else */
+    z-index: 1000;
     left: 0;
     top: 0;
     width: 100vw;
     height: 100vh;
-    background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent black overlay */
+    background-color: rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(3px); /* Adds a modern blur effect to the background */
     justify-content: center;
     align-items: center;
@@ -22,7 +22,7 @@
     width: 90%;
     max-width: 400px;
     position: relative;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); /* Depth shadow */
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
     animation: modalFadeIn 0.3s ease-out; /* Smooth pop-in animation */
 }
 
@@ -72,7 +72,7 @@
     padding: 12px 15px;
     border-radius: 8px;
     border: 1px solid #444;
-    background-color: #212121; /* Dark input fields */
+    background-color: #212121;
     color: #ececec;
     font-size: 1rem;
     outline: none;
@@ -93,7 +93,7 @@
     margin-top: 10px;
     width: 100%;
     padding: 12px;
-    background-color: #10a37f; /* Accent green color */
+    background-color: #10a37f;
     color: white;
     border: none;
     border-radius: 8px;
@@ -104,7 +104,7 @@
 }
 
 .modal-content button[type="submit"]:hover {
-    background-color: #0d8c6d; /* Slightly darker green on hover */
+    background-color: #0d8c6d;
 }
 
 /* --- Error/Message Styling --- */

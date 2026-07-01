@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List
+from datetime import datetime
 from .base import APIBaseSuccessEnvelope
 
 # --- REQUEST SCHEMAS ---
@@ -15,7 +16,8 @@ class MessageResponseData(BaseModel):
     """The shape of a single message returned in live conversation loops."""
     id: Optional[int] = None
     sender: str = "anonymous"
-    conversation_id: int = None
+    conversation_id: int | None
+    conversation_title: str | None
     user_prompt: str
     AI_response: str
     created_at: str
@@ -24,7 +26,6 @@ class ConversationInfo(BaseModel):
     id: int
     user_id: int
     title: str
-    created_at: str
 
 class MessageRecord(BaseModel):
     id: int
@@ -32,7 +33,6 @@ class MessageRecord(BaseModel):
     sender: str
     user_prompt: str
     AI_response: str
-    created_at: str
 
 
 # --- FINAL ENVELOPES ---

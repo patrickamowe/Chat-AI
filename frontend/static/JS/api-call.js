@@ -51,6 +51,64 @@ async function getUserInfo(access_token, url) {
     return await request.json();
 }
 
+async function updateUserInfo(username, email, access_token, url){
+    // The function is use by the frontend to
+    // update user info.
+
+    const data = {
+        username: username,
+        email: email,
+    }
+
+    const request = await fetch(url, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${access_token}`
+        },
+        body: JSON.stringify(data)
+    });
+
+    return await request.json()
+}
+
+async function deleteUserAcc(access_token, url) {
+    // The function is use by the frontend to
+    // permanently delete user account
+
+    const request = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${access_token}`
+        }
+    });
+
+    return await request.json()
+}
+
+async function changeUserPassword(password, new_password, access_token, url){
+    //The function is use by the frontend to
+    // change user password.
+
+    const data = {
+        password: password,
+        new_password: new_password
+    }
+
+    const request = await fetch(url, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${access_token}`
+        },
+        body: JSON.stringify(data)
+    });
+
+    return await request.json()
+}
+
+
 async function signUp(username, password, email, url) {
     // This function is used by the frontend to create
     // a new user account. It sends the user's
@@ -207,4 +265,7 @@ export {
     deleteConversations,
     getConversation,
     deleteConversation,
+    changeUserPassword,
+    updateUserInfo,
+    deleteUserAcc
 };

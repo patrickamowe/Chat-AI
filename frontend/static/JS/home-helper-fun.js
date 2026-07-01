@@ -202,7 +202,7 @@ function appendHistoryItemToSidebar(container, convo) {
 /**
  * CORE LOGIC: Orchestrates submission stream pipelines, updating structural layouts.
  * Processes local updates, shifts user content out instantly, fires API commands, and displays results.
- * * @async
+ * @async
  * @function handleQuerySubmission
  * @param {Object} context - Structured data requirements package map.
  * @param {HTMLInputElement|HTMLTextAreaElement} context.chatInput - Dom tracking element collecting data text inputs.
@@ -239,20 +239,25 @@ export async function handleQuerySubmission({
             return null;
         }
 
-        const reply = response.AI_response || (typeof response === 'string' ? response : "");
-        const nextId = response.conversation_id;
+        const reply = response.AI_response || response.content?.AI_response || (typeof response === 'string' ? response : "");
+        const nextId = response.conversation_id || response.content?.conversation_id;
+        const conversationTitle = response.conversation_title || response.content?.title || `Conversation #${nextId}`;
 
         appendMessageBubble(messageStream, 'assistant', reply);
 
-        // Track and auto-append item inside navigation historical indexes for completely new threads
-        if (!currentConversationId && nextId) {
+        // State Validation: Ensure string "null" from storage layers doesn't bypass this block
+        const isNewThread = !currentConversationId || currentConversationId === "null";
+
+        if (isNewThread && nextId) {
             if (ulConversations) {
                 appendHistoryItemToSidebar(ulConversations, {
                     id: nextId,
-                    title: response.title || `Conversation #${nextId}`
+                    title: conversationTitle
                 });
+            } else {
+                console.warn("Could not append item because ulConversations element reference is missing.");
             }
-            return nextId;
+            return nextId; // Return new token ID to sync main script context states
         }
     } catch (err) {
         console.error("Query dispatch transmission pipeline trace failed:", err);
@@ -264,6 +269,37 @@ export async function handleQuerySubmission({
     return null;
 }
 
+/**
+ * Downloads a historic log slice and drops message rows down the UI viewport.
+ * @async
+ * @function loadActiveMessages
+ * @param {string|number} conversationId - Targeting ID key representing thread index data.
+ * @param {HTMLElement} messageStream - Structural pool parent container parsing text nodes.
+ */
+async function loadActiveMessages(conversationId, messageStream) {
+    if (!messageStream) return;
+    messageStream.innerHTML = '';
+
+    try {
+        const responseData = await getUserConversation(conversationId);
+        const messageList = Array.isArray(responseData) ? responseData : (responseData?.content || []);
+
+        messageList.forEach(msg => {
+            if (msg.user_prompt) {
+                appendMessageBubble(messageStream, 'user', msg.user_prompt);
+            }
+            if (msg.AI_response) {
+                appendMessageBubble(messageStream, 'assistant', msg.AI_response);
+            }
+        });
+
+        scrollToBottom(messageStream);
+    } catch (err) {
+        console.error("Could not download old structural message logs context:", err);
+        appendMessageBubble(messageStream, 'assistant', "Error: Failed downloading chat context logs.");
+    }
+}
+
 export {
     getUserConversations,
     deleteUserConversations,
@@ -272,5 +308,6 @@ export {
     userChat,
     appendHistoryItemToSidebar,
     scrollToBottom,
-    appendMessageBubble
+    appendMessageBubble,
+    loadActiveMessages
 };

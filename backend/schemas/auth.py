@@ -9,6 +9,16 @@ class UserRegistrationRequest(BaseModel):
     password: str
     email: EmailStr
 
+class UserEditDetailsRequest(BaseModel):
+    """The edit form data sent by a new user trying to edit an account."""
+    username: str
+    email: EmailStr
+
+class UserEditPasswordRequest(BaseModel):
+    """The edit form data sent by a new user trying to edit a password."""
+    password: str
+    new_password: str
+
 class UserLoginRequest(BaseModel):
     """Data sent by the frontend login form."""
     username: str
@@ -76,6 +86,9 @@ class UserRegistrationSuccessEnvelope(APIBaseSuccessEnvelope):
 
 class UserProfileFetchSuccessEnvelope(APIBaseSuccessEnvelope):
     content: UserProfileResponseData
+
+class UserProfileEditSuccessEnvelope(APIBaseSuccessEnvelope):
+    content: Optional[None] = None
 
 class TokenRefreshSuccessEnvelope(APIBaseSuccessEnvelope):
     content: TokenRefreshResponseData

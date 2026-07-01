@@ -6,6 +6,7 @@
     <title>Profile Page</title>
     <link rel="icon" type="image/x-icon" href="{{url_for('static', path='Images/favicon.ico')}}">
     <link rel="stylesheet" href="{{url_for('static', path='CSS/profile-page.css')}}">
+    <link rel="stylesheet" href="{{url_for('static', path='CSS/popup.css')}}">
 </head>
 <body>
     <div id="app-wrapper">
@@ -46,6 +47,8 @@
         </main>
     </div>
 
+    {% include 'profile-popup.html' %}
     <script type="module" src="{{url_for('static', path='JS/profile-page.js')}}"></script>
+    <script src="{{url_for('static', path='JS/profile-popup.js')}}"></script>
 </body>
 </html>

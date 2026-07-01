@@ -1,8 +1,9 @@
-from datetime import datetime
-from fastapi import APIRouter, Depends, status, Path
-from fastapi.responses import JSONResponse
+from datetime import datetime, timezone
+from fastapi import APIRouter, Depends, status, Path, HTTPException
 from sqlalchemy.orm import Session
-from typing import Optional, Annotated
+from typing import Annotated, Optional
+from pydantic import TypeAdapter, ValidationError
+
 from ..db.database import get_db
 from ..models.model import Conversation, Message, User
 from ..schemas.auth import AccessTokenJWTPayload
@@ -20,10 +21,8 @@ from ..schemas.chat import (
     AssistantResponse
 )
 from google.genai import types
-from pydantic import ValidationError
-from ..utils.auth import get_current_user
+from ..utils.auth import get_current_user, get_current_user_optional
 from ..utils.gemini import client
-
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
@@ -32,40 +31,44 @@ router = APIRouter(prefix="/chat", tags=["Chat"])
     "/message",
     response_model=MessageSendSuccessEnvelope,
     status_code=status.HTTP_200_OK,
-    summary="Send a Chat Message",
+    summary="Send a chat prompt to the AI assistant",
     responses={
-        400: {
-            "model": APIFailureEnvelope,
-            "description": "Bad Request: Invalid or missing parameter combinations.",
-        },
-        404: {
-            "model": APIFailureEnvelope,
-            "description": "Not Found: User or conversation does not exist.",
-        },
-        500: {
-            "model": APIFailureEnvelope,
-            "description": "Internal Server Error: Database or server error.",
-        },
-        502: {
-            "model": APIFailureEnvelope,
-            "description": "Bad Gateway: Gemini AI failed to return a response or invalid JSON schema layout."
-        },
+        404: {"model": APIFailureEnvelope, "description": "Target profile or history trace not found."},
+        500: {"model": APIFailureEnvelope, "description": "Internal tracking framework or DB error."},
+        502: {"model": APIFailureEnvelope, "description": "AI core returned empty or syntactically invalid schema mapping."}
     },
 )
-def send_message(
-        message_request: SendMessageRequest,
-        db: Session = Depends(get_db),
-        auth_user: Optional[AccessTokenJWTPayload] = Depends(get_current_user),
+async def send_message(
+    message_request: SendMessageRequest,
+    db: Session = Depends(get_db),
+    auth_user: Optional[AccessTokenJWTPayload] = Depends(get_current_user_optional),
 ):
     """
-    Handles sending chat messages and routes them into one of three cases:
-    1. Guest Chat (No auth token present; volatile context)
-    2. Existing Chat (Valid auth token and conversation_id match; appended to history)
-    3. New Chat (Valid auth token provided, conversation_id is null; creates a thread)
+    Evaluates and processes chat prompt requests against three execution trees:
+
+    1. Guest Chat: Executed when no auth token is active. Responses are ephemeral.
+    2. Existing Thread: Executed when auth matches and conversation_id is passed.
+       Loads historical data context window directly into the generation layer.
+    3. New Persistent Thread: Executed when auth matches but conversation_id is absent.
+       Creates a permanent header object before executing data persistence workflows.
+
+    Args:
+        message_request (SendMessageRequest): Prompt string and explicit conversation indicators.
+        db (Session): The database connection controller dependency.
+        auth_user (Optional[AccessTokenJWTPayload]): Active session credentials, if present.
+
+    Raises:
+        HTTPException: 404 Not Found if user profiles or context IDs are missing.
+        HTTPException: 502 Bad Gateway if Gemini models fail verification constraints.
+        HTTPException: 500 Internal Error if persistence processing pipelines fail.
+
+    Returns:
+        MessageSendSuccessEnvelope: Packaged model block outlining prompt inputs and assistant metrics.
     """
     user_prompt = message_request.user_prompt
     conversation_id = message_request.conversation_id
-    timestamp_str = str(datetime.utcnow())
+    conversation_title = None
+    timestamp_str = str(datetime.now(timezone.utc))
     user_id = auth_user.user_id if auth_user else None
 
     user = None
@@ -73,19 +76,14 @@ def send_message(
 
     # --- PHASE 1: EARLY VALIDATION & HISTORY RETRIEVAL ---
     if user_id is not None:
-        # Validate User early to avoid redundant queries later
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
-            return JSONResponse(
+            raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                content=APIFailureEnvelope(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    success=False,
-                    message="User account could not be found.",
-                ).model_dump(mode="json")
+                detail="User account could not be located."
             )
 
-        # CASE 2: Existing Conversation - Fetch history context
+        # CASE 2: Existing Conversation - Fetch history context safely bound to user
         if conversation_id is not None:
             conversation = (
                 db.query(Conversation)
@@ -93,16 +91,12 @@ def send_message(
                 .first()
             )
             if not conversation:
-                return JSONResponse(
+                raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    content=APIFailureEnvelope(
-                        status_code=status.HTTP_404_NOT_FOUND,
-                        success=False,
-                        message="Conversation thread could not be found.",
-                    ).model_dump(mode="json")
+                    detail="The requested conversation thread could not be found or access is restricted."
                 )
 
-            # Pull last 10 records (newest first) to build the chat timeline
+            # Pull last 10 records (newest first) to build context buffer
             db_messages = (
                 db.query(Message)
                 .filter(Message.conversation_id == conversation_id)
@@ -110,14 +104,15 @@ def send_message(
                 .limit(10)
                 .all()
             )
-            db_messages.reverse()  # Reverse to restore correct chronological order
+            db_messages.reverse()
 
             for msg in db_messages:
                 gemini_contents.append(types.Content(role="user", parts=[types.Part.from_text(text=msg.user_prompt)]))
                 if msg.AI_response:
-                    gemini_contents.append(types.Content(role="model", parts=[types.Part.from_text(text=msg.user_prompt)]))
+                    # maps historical AI responses rather than replicating user prompts
+                    gemini_contents.append(types.Content(role="model", parts=[types.Part.from_text(text=msg.AI_response)]))
 
-    # Append the incoming current user_prompt text to the end of the payload list
+    # Append current chat challenge parameters
     gemini_contents.append(types.Content(role="user", parts=[types.Part.from_text(text=user_prompt)]))
 
     # --- PHASE 2: AI GENERATION & PARSING ---
@@ -138,45 +133,34 @@ def send_message(
         raw_text = response.text
 
         if not raw_text:
-            return JSONResponse(
+            raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                content=APIFailureEnvelope(
-                    status_code=status.HTTP_502_BAD_GATEWAY,
-                    success=False,
-                    message="The AI engine returned an empty response.",
-                ).model_dump(mode="json")
+                detail="The AI engine failed to return valid content data structures."
             )
 
-        # Map JSON back to Pydantic object cleanly
         ai_response = AssistantResponse.model_validate_json(raw_text)
 
     except ValidationError:
-        return JSONResponse(
+        raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            content=APIFailureEnvelope(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                success=False,
-                message="AI engine returned invalid structured layout data format.",
-            ).model_dump(mode="json")
+            detail="The AI model response failed structural field configuration audits."
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        return JSONResponse(
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content=APIFailureEnvelope(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                success=False,
-                message=f"AI connection failure: {str(e)}",
-            ).model_dump(mode="json")
+            detail=f"Core inference connection failure: {str(e)}"
         )
 
-    # --- PHASE 3: CASE ROUTING & EXECUTION ---
+    # --- PHASE 3: CASE ROUTING & PERSISTENCE ---
 
-    # CASE 1: GUEST CHAT
+    # CASE 1: GUEST CHAT (Short-circuit return)
     if user_id is None:
         return MessageSendSuccessEnvelope(
             status_code=status.HTTP_200_OK,
             success=True,
-            message="Temporary message processed successfully",
+            message="Guest message processed successfully.",
             content=MessageResponseData(
                 user_prompt=user_prompt,
                 AI_response=ai_response.content,
@@ -184,24 +168,23 @@ def send_message(
             ),
         )
 
-    # CASES 2 & 3: AUTHENTICATED PERSISTENCE (Consolidated Transaction)
+    # CASES 2 & 3: PERSISTENT TRANSACTION
     try:
         if conversation_id is None:
-            # Case 3: Create conversation master header entry
+            # Case 3: Setup brand-new log container thread
             title = getattr(ai_response, 'title', None)
+            conversation_title = str(title) if title else f"Conversation with {user.username}"
             conversation = Conversation(
                 user_id=user_id,
-                title=str(title) if title else f"Chat with {user.username}",
+                title=conversation_title,
             )
             db.add(conversation)
-            db.flush()  # Extract the newly minted database primary ID reference
+            db.flush()
             conversation_id = conversation.id
-            success_message = "New conversation created successfully"
+            success_message = "New conversation thread initialized successfully."
         else:
-            # Case 2: Existing Thread
-            success_message = "Message added to conversation successfully"
+            success_message = "Message appended to active conversation successfully."
 
-        # Universal message insertion block
         message = Message(
             conversation_id=int(conversation_id),
             sender=str(user.username),
@@ -214,13 +197,9 @@ def send_message(
 
     except Exception as db_err:
         db.rollback()
-        return JSONResponse(
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content=APIFailureEnvelope(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                success=False,
-                message=f"Database pipeline failure: {str(db_err)}",
-            ).model_dump(mode="json")
+            detail=f"Database ledger entry insertion failure: {str(db_err)}"
         )
 
     return MessageSendSuccessEnvelope(
@@ -230,93 +209,72 @@ def send_message(
         content=MessageResponseData(
             user_prompt=user_prompt,
             conversation_id=conversation_id,
+            conversation_title=conversation_title,
             AI_response=ai_response.content,
             created_at=timestamp_str,
             sender=str(user.username),
         ),
     )
 
+
 @router.get(
     "/conversations",
     response_model=ConversationsListSuccessEnvelope,
     status_code=status.HTTP_200_OK,
-    summary="Get All Conversations for Current User",
+    summary="Get user conversation history logs",
     responses={
-        401: {
-            "model": APIFailureEnvelope,
-            "description": "Unauthorized: Missing or invalid token.",
-        },
-        404: {
-            "model": APIFailureEnvelope,
-            "description": "Not Found: User account not found.",
-        },
-        500: {
-            "model": APIFailureEnvelope,
-            "description": "Internal Server Error: Database failure.",
-        },
+        401: {"model": APIFailureEnvelope, "description": "Invalid or missing access token."},
+        404: {"model": APIFailureEnvelope, "description": "Target identity maps do not point to active users."},
+        500: {"model": APIFailureEnvelope, "description": "Internal server database execution faults."}
     },
 )
 async def get_conversations(
-        db: Session = Depends(get_db),
-        auth_user: Optional[AccessTokenJWTPayload] = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    auth_user: AccessTokenJWTPayload = Depends(get_current_user),
 ):
     """
-    Gets a list of all conversations belonging to the logged-in user.
-    Returns an empty list `[]` if the user has no history.
-    """
-    if not auth_user:
-        return JSONResponse(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            content=APIFailureEnvelope(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                success=False,
-                message="Authentication token is missing or expired.",
-            ).model_dump(mode="json"),
-        )
+    Compiles an organized trace of all historical chat headers tied to the active user profile.
 
+    Args:
+        db (Session): The database transaction manager engine.
+        auth_user (AccessTokenJWTPayload): Security validation matrix.
+
+    Raises:
+        HTTPException: 404 Not Found if user trace is lost during query loops.
+        HTTPException: 500 Internal Server Error on processing faults.
+
+    Returns:
+        ConversationsListSuccessEnvelope: An array listing tracking headers.
+    """
     user = db.query(User).filter(User.id == auth_user.user_id).first()
     if not user:
-        return JSONResponse(
+        raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            content=APIFailureEnvelope(
-                status_code=status.HTTP_404_NOT_FOUND,
-                success=False,
-                message="User account could not be found.",
-            ).model_dump(mode="json"),
+            detail="User account verification mapping was unresolvable."
         )
 
     try:
         conversations = (
             db.query(Conversation)
             .filter(Conversation.user_id == user.id)
-            .order_by(Conversation.created_at.desc())
+            .order_by(Conversation.created_at.asc())
             .all()
         )
 
-        formatted_conversations = [
-            ConversationInfo(
-                id=int(conversation.id),
-                user_id=int(conversation.user_id),
-                title=str(conversation.title),
-                created_at=str(conversation.created_at)
-            ).model_dump(mode="json") for conversation in conversations
-        ]
+        adapter = TypeAdapter(list[ConversationInfo])
+        formatted_conversations = adapter.dump_python(conversations, mode="json")
 
         return ConversationsListSuccessEnvelope(
             status_code=status.HTTP_200_OK,
             success=True,
-            message="User conversations fetched successfully.",
+            message="User session historical traces compiled successfully.",
             content=formatted_conversations,
         )
 
     except Exception as e:
-        return JSONResponse(
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content=APIFailureEnvelope(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                success=False,
-                message=f"Database error while fetching conversations: {str(e)}",
-            ).model_dump(mode="json"),
+            detail=f"An error occurred while compiling chat metrics: {str(e)}"
         )
 
 
@@ -324,49 +282,36 @@ async def get_conversations(
     "/conversations",
     response_model=ConversationsDeleteSuccessEnvelope,
     status_code=status.HTTP_200_OK,
-    summary="Delete All Conversations for Current User",
+    summary="Wipe out user chat history",
     responses={
-        401: {
-            "model": APIFailureEnvelope,
-            "description": "Unauthorized: Token validation failed.",
-        },
-        404: {
-            "model": APIFailureEnvelope,
-            "description": "Not Found: User account does not exist.",
-        },
-        500: {
-            "model": APIFailureEnvelope,
-            "description": "Internal Server Error: Database failure.",
-        },
+        401: {"model": APIFailureEnvelope, "description": "Invalid or missing access token."},
+        404: {"model": APIFailureEnvelope, "description": "User matching records missing."},
+        500: {"model": APIFailureEnvelope, "description": "Transaction processing error."}
     },
 )
 async def delete_conversations(
-        db: Session = Depends(get_db),
-        auth_user: Optional[AccessTokenJWTPayload] = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    auth_user: AccessTokenJWTPayload = Depends(get_current_user),
 ):
     """
-    Permanently deletes all conversation history and messages for the logged-in user.
-    All related messages are deleted automatically via model relationship constraints.
-    """
-    if not auth_user:
-        return JSONResponse(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            content=APIFailureEnvelope(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                success=False,
-                message="Authentication token is missing or invalid.",
-            ).model_dump(mode="json")
-        )
+    Executes a complete metadata erasure of every chat tracking thread associated with the identity profile.
 
+    Args:
+        db (Session): Database active engine processing context.
+        auth_user (AccessTokenJWTPayload): Credentials authorization layer.
+
+    Raises:
+        HTTPException: 404 Not Found if identity profile check drops out.
+        HTTPException: 500 Internal Error during mass drop queries.
+
+    Returns:
+        ConversationsDeleteSuccessEnvelope: Clean database verification signal.
+    """
     user = db.query(User).filter(User.id == auth_user.user_id).first()
     if not user:
-        return JSONResponse(
+        raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            content=APIFailureEnvelope(
-                status_code=status.HTTP_404_NOT_FOUND,
-                success=False,
-                message="User account could not be found.",
-            ).model_dump(mode="json")
+            detail="User identity matching matrix validation failed."
         )
 
     try:
@@ -378,18 +323,14 @@ async def delete_conversations(
         return ConversationsDeleteSuccessEnvelope(
             status_code=status.HTTP_200_OK,
             success=True,
-            message="All conversations deleted for the user.",
+            message="All historical conversation data records have been successfully deleted.",
         )
 
     except Exception as db_err:
         db.rollback()
-        return JSONResponse(
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content=APIFailureEnvelope(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                success=False,
-                message=f"Database error while deleting conversations: {str(db_err)}",
-            ).model_dump(mode="json")
+            detail=f"Error executing database clear request operations: {str(db_err)}"
         )
 
 
@@ -397,53 +338,45 @@ async def delete_conversations(
     "/conversation/{conversation_id}",
     response_model=ConversationDetailsSuccessEnvelope,
     status_code=status.HTTP_200_OK,
-    summary="Get Messages from a Single Conversation",
+    summary="Get conversation record logs",
     responses={
-        401: {"model": APIFailureEnvelope, "description": "Unauthorized"},
-        404: {
-            "model": APIFailureEnvelope,
-            "description": "Not Found: Conversation does not exist.",
-        },
-        500: {
-            "model": APIFailureEnvelope,
-            "description": "Internal Server Error",
-        },
+        401: {"model": APIFailureEnvelope, "description": "Invalid or missing access token."},
+        404: {"model": APIFailureEnvelope, "description": "Conversation reference cannot be located."},
+        500: {"model": APIFailureEnvelope, "description": "Internal data routing mapping faults."}
     },
 )
 async def get_conversation(
-        conversation_id: Annotated[int, Path(title="The ID of the conversation to get", ge=1)],
-        db: Session = Depends(get_db),
-        auth_user: Optional[AccessTokenJWTPayload] = Depends(get_current_user),
+    conversation_id: Annotated[int, Path(title="The target conversation unique primary identifier", ge=1)],
+    db: Session = Depends(get_db),
+    auth_user: AccessTokenJWTPayload = Depends(get_current_user),
 ):
     """
-    Gets the full message history for a specific conversation ID.
-    Validates that the logged-in user owns the conversation before returning data.
-    """
-    if not auth_user:
-        return JSONResponse(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            content=APIFailureEnvelope(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                success=False,
-                message="Authentication token is missing or invalid.",
-            ).model_dump(mode="json"),
-        )
+    Extracts every granular chat message trace associated with a specific dialogue context container.
 
+    Args:
+        conversation_id (int): Database numerical primary tracking index.
+        db (Session): Database operations layer dependency.
+        auth_user (AccessTokenJWTPayload): Security validation framework payload.
+
+    Raises:
+        HTTPException: 404 Not Found if requested conversation index is unavailable or un-owned.
+        HTTPException: 500 System Fault if transformation validation rules fail.
+
+    Returns:
+        ConversationDetailsSuccessEnvelope: Chronological dataset trace mapping previous interactions.
+    """
     try:
+        # filter validation guard confirming thread ownership matches auth context
         conversation = (
             db.query(Conversation)
-            .filter(Conversation.id == conversation_id)
+            .filter(Conversation.id == conversation_id, Conversation.user_id == auth_user.user_id)
             .first()
         )
 
         if not conversation:
-            return JSONResponse(
+            raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                content=APIFailureEnvelope(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    success=False,
-                    message="Conversation record could not be found.",
-                ).model_dump(mode="json"),
+                detail="The requested conversation record does not exist or access was denied."
             )
 
         messages = (
@@ -452,32 +385,22 @@ async def get_conversation(
             .all()
         )
 
-        formatted_message = [
-            MessageRecord(
-                id=int(message_record.id),
-                conversation_id=int(message_record.conversation_id),
-                sender=str(message_record.sender),
-                user_prompt=str(message_record.user_prompt),
-                AI_response=str(message_record.AI_response),
-                created_at=str(message_record.created_at),
-            ) for message_record in messages
-        ]
+        adapter = TypeAdapter(list[MessageRecord])
+        formatted_messages = adapter.dump_python(messages, mode="json")
 
         return ConversationDetailsSuccessEnvelope(
             status_code=status.HTTP_200_OK,
             success=True,
-            message="Conversation messages loaded successfully.",
-            content=formatted_message,
+            message="Dialogue timeline history records loaded successfully.",
+            content=formatted_messages,
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
-        return JSONResponse(
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content=APIFailureEnvelope(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                success=False,
-                message=f"Database error while loading conversation: {str(e)}",
-            ).model_dump(mode="json"),
+            detail=f"Data pipeline system error while extracting timeline arrays: {str(e)}"
         )
 
 
@@ -485,53 +408,45 @@ async def get_conversation(
     "/conversation/{conversation_id}",
     response_model=ConversationDeleteSuccessEnvelope,
     status_code=status.HTTP_200_OK,
-    summary="Delete a Single Conversation",
+    summary="Delete single conversation block",
     responses={
-        401: {"model": APIFailureEnvelope, "description": "Unauthorized"},
-        404: {
-            "model": APIFailureEnvelope,
-            "description": "Not Found: Conversation does not exist.",
-        },
-        500: {
-            "model": APIFailureEnvelope,
-            "description": "Internal Server Error",
-        },
+        401: {"model": APIFailureEnvelope, "description": "Invalid or missing access token."},
+        404: {"model": APIFailureEnvelope, "description": "Specified tracking container missing."},
+        500: {"model": APIFailureEnvelope, "description": "Database system mutation failure."}
     },
 )
 async def delete_conversation(
-        conversation_id:Annotated[int, Path(title="The ID of the conversation to delete", ge=1)],
-        db: Session = Depends(get_db),
-        auth_user: Optional[AccessTokenJWTPayload] = Depends(get_current_user),
+    conversation_id: Annotated[int, Path(title="The explicit identifier index aimed for drop commands", ge=1)],
+    db: Session = Depends(get_db),
+    auth_user: AccessTokenJWTPayload = Depends(get_current_user),
 ):
     """
-    Permanently deletes a single conversation by its ID.
-    All associated messages are deleted automatically via model relationship constraints.
-    """
-    if not auth_user:
-        return JSONResponse(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            content=APIFailureEnvelope(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                success=False,
-                message="Authentication token is missing or invalid.",
-            ).model_dump(mode="json")
-        )
+    Destroys a separate individual dialogue stream header tracking container block.
 
+    Args:
+        conversation_id (int): Primary tracking container unique ID key.
+        db (Session): Active system pipeline dependency context.
+        auth_user (AccessTokenJWTPayload): Context configuration authorization tracking values.
+
+    Raises:
+        HTTPException: 404 Not Found if target ID is un-owned or invalid.
+        HTTPException: 500 Transaction Error on internal database processing failure.
+
+    Returns:
+        ConversationDeleteSuccessEnvelope: Execution safety confirmation packet.
+    """
     try:
+        # filter criteria preventing cross-user account target access deletions
         conversation = (
             db.query(Conversation)
-            .filter(Conversation.id == conversation_id)
+            .filter(Conversation.id == conversation_id, Conversation.user_id == auth_user.user_id)
             .first()
         )
 
         if not conversation:
-            return JSONResponse(
+            raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                content=APIFailureEnvelope(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    success=False,
-                    message="Conversation not found.",
-                ).model_dump(mode="json")
+                detail="The specified conversation thread target could not be found or access is restricted."
             )
 
         db.delete(conversation)
@@ -540,16 +455,14 @@ async def delete_conversation(
         return ConversationDeleteSuccessEnvelope(
             status_code=status.HTTP_200_OK,
             success=True,
-            message="Conversation deleted for the user.",
+            message="Conversation record successfully purged from database histories.",
         )
 
+    except HTTPException:
+        raise
     except Exception as db_err:
         db.rollback()
-        return JSONResponse(
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content=APIFailureEnvelope(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                success=False,
-                message=f"Database error while deleting conversation: {str(db_err)}",
-            ).model_dump(mode="json")
+            detail=f"Database transaction failure executing clear request command routines: {str(db_err)}"
         )
