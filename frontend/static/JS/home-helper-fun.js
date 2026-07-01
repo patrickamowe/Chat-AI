@@ -1,7 +1,7 @@
 import {
     CONVERSATIONS_URL,
     CONVERSATION_URL,
-    MESSAGE_URL
+    MESSAGE_URL,
 } from './constants.js';
 import {
     chat,
@@ -183,23 +183,6 @@ function scrollToBottom(stream) {
 }
 
 /**
- * SIDEBAR UTILITY: Formats and shifts a historical list item directly into tracking sidebar slots.
- * Inserts elements at the top of the container layout pipeline using the firstChild reference.
- * * @function appendHistoryItemToSidebar
- * @param {HTMLElement} container - The navigation sidebar UL layout container wrapper.
- * @param {Object} convo - Data packet defining tracking points.
- * @param {string|number} convo.id - Unique database element index key.
- * @param {string} [convo.title] - Readable string preview describing past chat contents.
- */
-function appendHistoryItemToSidebar(container, convo) {
-    const li = document.createElement('li');
-    li.classList.add('chat-history-item');
-    li.setAttribute('item-id', convo.id);
-    li.textContent = convo.title || `Conversation #${convo.id}`;
-    container.insertBefore(li, container.firstChild);
-}
-
-/**
  * CORE LOGIC: Orchestrates submission stream pipelines, updating structural layouts.
  * Processes local updates, shifts user content out instantly, fires API commands, and displays results.
  * @async
@@ -297,6 +280,121 @@ async function loadActiveMessages(conversationId, messageStream) {
     } catch (err) {
         console.error("Could not download old structural message logs context:", err);
         appendMessageBubble(messageStream, 'assistant', "Error: Failed downloading chat context logs.");
+    }
+}
+
+/**
+ * SIDEBAR UTILITY: Formats and shifts a historical list item directly into tracking sidebar slots.
+ * Inserts elements at the top of the container layout pipeline using the firstChild reference.
+ * Includes a vertical three-dot context menu for Delete, Share, and Rename actions.
+ * * @function appendHistoryItemToSidebar
+ * @param {HTMLElement} container - The navigation sidebar UL layout container wrapper.
+ * @param {Object} convo - Data packet defining tracking points.
+ * @param {string|number} convo.id - Unique database element index key.
+ * @param {string} [convo.title] - Readable string preview describing past chat contents.
+ */
+function appendHistoryItemToSidebar(container, convo) {
+    const li = document.createElement('li');
+    li.classList.add('chat-history-item');
+    li.setAttribute('item-id', convo.id);
+
+    // 1. Create a span for the text content so it doesn't conflict with the menu layout
+    const textSpan = document.createElement('span');
+    textSpan.classList.add('chat-history-text');
+    textSpan.textContent = convo.title || `Conversation #${convo.id}`;
+    li.appendChild(textSpan);
+
+    // 2. Create the Menu Wrapper
+    const menuWrapper = document.createElement('div');
+    menuWrapper.classList.add('history-menu-wrapper');
+
+    // 3. Create the Three-Dot Button (Vertical Ellipsis: &#8942;)
+    const menuBtn = document.createElement('button');
+    menuBtn.classList.add('history-menu-btn');
+    menuBtn.innerHTML = '&#8942;';
+    menuWrapper.appendChild(menuBtn);
+
+    // 4. Create the Dropdown Content
+    const dropdown = document.createElement('div');
+    dropdown.classList.add('history-dropdown');
+    dropdown.style.display = 'none'; // Hidden by default
+
+    // Define the menu options
+    const actions = [
+        { label: 'Rename', class: 'action-rename', fn: () => renameConvo(convo.id) },
+        { label: 'Share', class: 'action-share', fn: () => shareConvo(convo.id) },
+        { label: 'Delete', class: 'action-delete', fn: async () => await deleteConvo(convo.id) }
+    ];
+
+    // Build option elements
+    actions.forEach(action => {
+        const option = document.createElement('div');
+        option.classList.add('dropdown-item', action.class);
+        option.textContent = action.label;
+        option.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent triggering background clicks
+            action.fn();
+            dropdown.style.display = 'none'; // Close menu after action
+        });
+        dropdown.appendChild(option);
+    });
+
+    menuWrapper.appendChild(dropdown);
+    li.appendChild(menuWrapper);
+
+    // 5. Toggle Dropdown Menu Visibility
+    menuBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // Stop click from bubbling to the LI itself
+
+        // Close any other open history dropdowns first
+        document.querySelectorAll('.history-dropdown').forEach(d => {
+            if (d !== dropdown) d.style.display = 'none';
+        });
+
+        // Toggle current dropdown
+        const isHidden = dropdown.style.display === 'none';
+        dropdown.style.display = isHidden ? 'block' : 'none';
+    });
+
+    // Close dropdown if user clicks anywhere else on the page
+    document.addEventListener('click', () => {
+        dropdown.style.display = 'none';
+    });
+
+    // Insert the finalized list item into the sidebar
+    container.insertBefore(li, container.firstChild);
+}
+
+// --- Placeholder Handler Functions (Implement your logic here) ---
+function renameConvo(id) {
+    const newName = prompt("Enter new conversation name:");
+    if (newName) console.log(`Renaming convo ${id} to: ${newName}`);
+}
+
+function shareConvo(id) {
+    console.log(`Sharing convo ${id}`);
+}
+
+async function deleteConvo(id) {
+    if (confirm("Are you sure you want to delete this conversation?")) {
+        const response = await deleteUserConversation(id);
+        if (response){
+            // Remove the deleted id from the session storage
+            const currentConversationId = sessionStorage.getItem('active_conversation_id') || null;
+            if (currentConversationId){
+                if (currentConversationId === id.toString()){
+                    sessionStorage.removeItem('active_conversation_id');
+                }
+            }
+
+            // Alert the user for successful deletion and reload the current page
+            window.alert(response);
+            window.location.reload();
+        } else {
+            window.alert("Fail to Delete user account.");
+        }
+
+
     }
 }
 
