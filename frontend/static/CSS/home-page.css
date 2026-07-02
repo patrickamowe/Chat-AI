@@ -1,4 +1,6 @@
-/* --- Global Resets & Base Styles --- */
+/* ==========================================================================
+   1. Global Resets & Base Styles
+   ========================================================================== */
 * {
     box-sizing: border-box;
     margin: 0;
@@ -13,14 +15,14 @@ body {
     overflow: hidden;
 }
 
-/* --- Ultimate Global Anchor Tag Reset --- */
+/* Ultimate Global Anchor Tag Reset */
 a,
 a:link,
 a:visited,
 a:hover,
 a:active {
-    text-decoration: none !important; /* Erases stubborn browser underlines */
-    color: inherit !important;        /* Prevents links from turning purple */
+    text-decoration: none !important;
+    color: inherit !important;
     cursor: pointer;
 }
 
@@ -30,7 +32,9 @@ a:active {
     width: 100vw;
 }
 
-/* --- Sidebar (Desktop Layout Definitions) --- */
+/* ==========================================================================
+   2. Sidebar (Desktop Layout)
+   ========================================================================== */
 #sidebar {
     width: 260px;
     background-color: #000000;
@@ -38,7 +42,8 @@ a:active {
     flex-direction: column;
     padding: 10px 15px;
     border-right: 1px solid #333;
-    transition: left 0.3s ease; /* Enables smooth slide-in animation on mobile screen sizes */
+    transition: left 0.3s ease;
+    z-index: 100;
 }
 
 .sidebar-menu {
@@ -81,18 +86,36 @@ a:active {
     font-weight: 600;
 }
 
+.history-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-right: 5px;
+}
+
+.clear-history-action {
+    font-size: 0.75rem !important; /* Slightly smaller than 'Chat history' text */
+    color: #ff5252 !important;     /* Warning red accent */
+    cursor: pointer;
+    font-weight: 500;
+    transition: opacity 0.2s ease;
+    user-select: none;
+}
+
+.clear-history-action:hover {
+    opacity: 0.8;
+}
+
 .chats-history-list {
     list-style: none;
     padding-left: 5px;
 }
 
 .chat-history-item {
-    /* Changed to flex to align text and the three-dot button side-by-side */
     display: flex;
     justify-content: space-between;
     align-items: center;
-    position: relative; /* Crucial for absolute positioning of the dropdown */
-
+    position: relative;
     padding: 2px 4px;
     margin-bottom: 1px;
     border-radius: 20px;
@@ -105,7 +128,6 @@ a:active {
     cursor: pointer;
 }
 
-/* Moved text truncation safely to its own inner span element */
 .chat-history-text {
     flex-grow: 1;
     white-space: nowrap;
@@ -134,7 +156,6 @@ a:active {
     transition: color 0.2s, background-color 0.2s;
 }
 
-/* Make button pop slightly when hovering over the row or the button itself */
 .chat-history-item:hover .history-menu-btn {
     color: #ececec;
 }
@@ -143,12 +164,12 @@ a:active {
     background-color: #333333;
 }
 
-/* Floating Dropdown Menu Menu */
+/* Floating Dropdown Menu */
 .history-dropdown {
     position: absolute;
     right: 0;
-    top: calc(100% + 5px); /* Places it right beneath the button */
-    background-color: #2a2a2a; /* Dark background to match your theme */
+    top: calc(100% + 5px);
+    background-color: #2a2a2a;
     border: 1px solid #444444;
     border-radius: 6px;
     box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.4);
@@ -157,7 +178,6 @@ a:active {
     overflow: hidden;
 }
 
-/* Individual Dropdown Action Items */
 .dropdown-item {
     padding: 8px 12px;
     font-size: 0.85rem;
@@ -171,16 +191,15 @@ a:active {
     background-color: #3d3d3d;
 }
 
-/* Destructive action styling (Delete) */
 .dropdown-item.action-delete {
-    color: #ff5252; /* Vivid soft red */
+    color: #ff5252;
 }
 
 .dropdown-item.action-delete:hover {
     background-color: #4a2222;
 }
 
-/* Sidebar Footer Layout elements */
+/* Sidebar Footer */
 .sidebar-footer {
     padding: 10px 0;
     margin-top: auto;
@@ -208,7 +227,9 @@ a:active {
     cursor: pointer;
 }
 
-/* --- Main Content Viewport Area --- */
+/* ==========================================================================
+   3. Main Chat Viewport & Translucent Top Navbar
+   ========================================================================== */
 #main-chat-area {
     flex: 1;
     display: flex;
@@ -217,29 +238,114 @@ a:active {
     position: relative;
 }
 
-/* Top Navigation Header Configuration Rules */
 .top-navbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 15px 20px;
     height: 60px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: rgba(33, 33, 33, 0.75);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
 }
 
 .brand-container {
     display: flex;
     align-items: center;
+    gap: 4px;
 }
 
 #app-logo {
     font-size: 1.2rem;
     font-weight: bold;
+    display: flex;
+    align-items: center;
+    position: relative;
+    user-select: none;
+}
+
+#app-logo a {
     color: #ececec;
+    text-decoration: none;
+    padding: 4px 2px 4px 6px;
+    transition: opacity 0.2s ease;
 }
 
 #app-logo a:hover {
     opacity: 0.85;
     cursor: pointer;
+}
+
+.dropdown-arrow-btn {
+    background: none;
+    border: none;
+    color: #ececec;
+    cursor: pointer;
+    padding: 6px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background-color 0.2s ease, opacity 0.2s ease;
+}
+
+.dropdown-arrow-btn:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.dropdown-arrow {
+    font-size: 0.65rem;
+    opacity: 0.7;
+    transition: transform 0.2s ease;
+}
+
+#app-logo.open .dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+#app-logo .dropdown-menu {
+    position: absolute;
+    top: 120%;
+    left: 0;
+    background-color: #202123;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 4px 0;
+    margin: 0;
+    list-style: none;
+    min-width: 130px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    display: none;
+    z-index: 1000;
+}
+
+#app-logo.open .dropdown-menu {
+    display: block;
+}
+
+#app-logo .dropdown-menu li {
+    padding: 10px 16px;
+    font-size: 0.95rem;
+    font-weight: normal;
+    color: #ececec;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+#app-logo .dropdown-menu li:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+#app-logo .dropdown-menu li[data-value="gemini"]:hover {
+    background: linear-gradient(90deg, rgba(157, 78, 221, 0.25), rgba(67, 97, 238, 0.25));
+}
+
+#app-logo .dropdown-menu li.active {
+    color: #4361ee;
+    font-weight: bold;
 }
 
 .user-actions-container {
@@ -268,7 +374,6 @@ a:active {
     cursor: pointer;
 }
 
-/* Authentication Trigger Button Components */
 .nav-signin-btn, .nav-signup-btn {
     padding: 8px 16px;
     border-radius: 20px;
@@ -298,14 +403,16 @@ a:active {
     cursor: pointer;
 }
 
-/* Main Chat UI Architecture */
+/* ==========================================================================
+   4. Chat Interface & Dynamic Stream (ChatGPT / Gemini Architecture)
+   ========================================================================== */
 .chat-interface {
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 0 20px 20px 20px;
+    padding: 0 20px;
 }
 
 .greeting-container h3 {
@@ -315,44 +422,215 @@ a:active {
     text-align: center;
 }
 
-/* Input layout component frame styling wrapper */
+/* Active Conversation View Transition */
+.chat-interface.chat-active {
+    justify-content: flex-start;
+    align-items: center;
+    height: calc(100vh - 60px);
+}
+
+.chat-interface.chat-active #greeting-container {
+    display: none !important;
+}
+
+/* Message Stream Layer */
+.message-stream {
+    display: none;
+    flex: 1;
+    overflow-y: auto;
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 24px 0;
+    flex-direction: column;
+    gap: 32px;
+}
+
+.chat-interface.chat-active .message-stream {
+    display: flex;
+}
+
+/* Message Rows Animations & Layout */
+.message-row {
+    display: flex;
+    width: 100%;
+    animation: messageFadeIn 0.3s ease-out forwards;
+}
+
+@keyframes messageFadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.message-row.assistant-msg {
+    text-align: justify;
+    hyphens: auto;
+}
+
+/* Dialog Chat Bubbles */
+.msg-bubble {
+    padding: 12px 18px;
+    font-size: 0.98rem;
+    line-height: 1.5;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+
+/* ==========================================================================
+   ADVANCED DESIGN: User Message 4-Line Clamp & Interactive Fade-out
+   ========================================================================== */
+.message-row.user-msg {
+    justify-content: flex-end;
+    width: 100%;
+}
+
+.user-msg .msg-bubble {
+    background-color: #2f2f2f;
+    color: #ececec;
+    border: 1px solid #3c3c3c;
+    border-radius: 24px 24px 4px 24px;
+    padding: 14px 20px;
+    width: auto;
+    max-width: 450px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    cursor: pointer;
+    position: relative;
+    transition: max-height 0.25s ease, box-shadow 0.2s;
+
+    /* Webkit Engine Multiline Truncation Properties */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+    overflow: hidden;
+
+    /* Perfect line calculations to completely prevent ugly container clip-offs */
+    line-height: 1.5;
+    max-height: calc(1.5em * 4 + 28px);
+}
+
+/* Premium bottom mask fade-out effect overlay for truncated state */
+.user-msg .msg-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 24px;
+    background: linear-gradient(transparent, #2f2f2f);
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    opacity: 1;
+}
+
+/* Hover feedback state */
+.user-msg .msg-bubble:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    border-color: #4a4a4a;
+}
+
+/* FULL REVEAL: Resetting all structural limitations when the .expanded class triggers */
+.user-msg .msg-bubble.expanded {
+    display: block !important;
+    -webkit-line-clamp: unset !important;
+    line-clamp: unset !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+/* Hide the fade mask completely when text is fully displayed */
+.user-msg .msg-bubble.expanded::after {
+    opacity: 0 !important;
+}
+
+.assistant-msg .msg-bubble {
+    background-color: transparent;
+    color: #ececec;
+    padding-left: 0;
+    width: 100%;
+    line-height: 1.6;
+}
+
+/* Inline Elements Markdown Content Styling */
+.msg-bubble p {
+    margin: 0 0 10px 0;
+}
+.msg-bubble p:last-child {
+    margin-bottom: 0;
+}
+
+.msg-bubble ul, .msg-bubble ol {
+    margin: 0 0 10px 0;
+    padding-left: 20px;
+}
+
+.msg-bubble pre {
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    padding: 12px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-family: 'Courier New', Courier, monospace;
+    margin: 12px 0;
+    border: 1px solid #333;
+}
+
+.msg-bubble :not(pre) > code {
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+/* ==========================================================================
+   5. Chat Input Bar Architecture
+   ========================================================================== */
 .chat-input-container {
     position: relative;
     display: flex;
-    align-items: flex-end; /* Snaps action group assets gracefully to baseline when expanding */
-    background-color: #2a2b32;
-    border: 1px solid #4a4b50;
-    border-radius: 25px;
+    align-items: flex-end;
+    background-color: #2f2f2f;
+    border: 1px solid #424242;
+    border-radius: 28px;
     width: 100%;
-    max-width: 600px;
+    max-width: 720px;
     margin: 20px auto;
-    padding: 12px;
+    padding: 14px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* UPDATED: Refactored and optimized explicitly to support textarea scaling */
+.chat-input-container:focus-within {
+    border-color: #676767;
+}
+
+.chat-interface.chat-active .chat-input-container {
+    margin-top: auto;
+    margin-bottom: 15px;
+}
+
 .chat-input {
     width: 100%;
     background: transparent;
     border: none;
     color: white;
     font-size: 16px;
-    padding-left: 35px;  /* Keeps typing space away from left icon layout bounds */
-    padding-right: 70px; /* Leaves clear margin width for right control button group */
+    padding-left: 36px;
+    padding-right: 76px;
     outline: none;
-
-    /* Textarea behavior stabilizers */
-    resize: none;             /* Disables native desktop resize dragger element handles */
-    font-family: inherit;     /* Forces textarea typography matching app ecosystem definitions */
-    height: 24px;             /* Baseline target design height */
-    max-height: 180px;        /* Limits expansion constraints from running off interface viewports */
-    overflow-y: auto;         /* Displays explicit side viewport scrollbar safely past limit height */
+    resize: none;
+    font-family: inherit;
+    height: 24px;
+    max-height: 180px;
+    overflow-y: auto;
     line-height: 1.5;
 }
 
-/* Position mapping properties for operational icons */
+/* Action Control Icons Settings */
 .input-icon {
     cursor: pointer;
-    opacity: 0.7;
+    opacity: 0.6;
     transition: opacity 0.2s;
 }
 
@@ -362,134 +640,54 @@ a:active {
 
 .icon-left {
     position: absolute;
-    left: 15px;
-    bottom: 14px; /* Sticks precisely near base row axis when textarea stretches upwards */
-    width: 20px;
-    height: 20px;
+    left: 16px;
+    bottom: 15px;
+    width: 22px;
+    height: 22px;
 }
 
 .icon-right-group {
     position: absolute;
-    right: 15px;
-    bottom: 14px; /* Keeps the action controls uniform to input area footprint alignments */
+    right: 16px;
+    bottom: 15px;
     display: flex;
-    gap: 12px;
+    gap: 14px;
+    align-items: center;
 }
 
 .icon-right {
-    height: 20px;
-    width: 20px;
+    height: 22px;
+    width: 22px;
 }
 
-.icon-left:hover, .icon-right:hover {
-    cursor: pointer;
-    opacity: 1;
+#send-btn {
+    transition: transform 0.15s ease;
 }
 
-/* --- Active Conversation Layout Transitions --- */
-.chat-interface.chat-active {
-    justify-content: flex-start; /* Shifts positioning alignment down */
-    align-items: stretch;
-    height: calc(100vh - 60px);
+#send-btn:hover {
+    transform: scale(1.08);
 }
 
-/* Hides greeting container instantly once context thread is active */
-.chat-interface.chat-active #greeting-container {
-    display: none !important;
+/* ==========================================================================
+   6. Gemini-Mode Dynamic Brand Theme Extenders
+   ========================================================================== */
+.gemini-mode .chat-input-container:focus-within {
+    border-color: transparent;
+    background-image: linear-gradient(#2f2f2f, #2f2f2f),
+                      linear-gradient(90deg, #9d4ede, #4361ee);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    box-shadow: 0 0 16px rgba(157, 78, 221, 0.2);
 }
 
-/* Live dynamic scroll message stream component rules */
-.message-stream {
-    display: none; /* Kept hidden until conversation is initialized */
-    flex: 1;
-    overflow-y: auto;
-    width: 100%;
-    max-width: 680px;
-    margin: 0 auto;
-    padding: 20px 0;
-    flex-direction: column;
-    gap: 24px;
+.gemini-mode #profile-icon {
+    background: linear-gradient(135deg, #9d4ede, #4361ee);
 }
 
-.chat-interface.chat-active .message-stream {
-    display: flex;
-}
-
-/* Locks interactive panel container cleanly down at footer baseline when stream mounts */
-.chat-interface.chat-active .chat-input-container {
-    margin-top: auto;
-    margin-bottom: 10px;
-}
-
-/* --- Dialogue Log Render Rows Styles --- */
-.message-row {
-    display: flex;
-    width: 100%;
-}
-.message-row.user-msg { justify-content: flex-end; }
-.message-row.assistant-msg {
-    text-align: justify;
-    hyphens: auto;      /* Automatically inserts hyphens where appropriate */
-}
-
-.msg-bubble {
-    padding: 12px 18px;
-    border-radius: 20px;
-    max-width: 100%;
-    font-size: 0.98rem;
-    line-height: 1.5;
-    word-break: break-word;
-    white-space: pre-wrap; /* Maintains multiline paragraph layouts generated by users */
-}
-
-.user-msg .msg-bubble {
-    background-color: #2f2f2f;
-    color: #ececec;
-    border: 1px solid #4a4b50;
-    border-bottom-right-radius: 4px;
-}
-
-.assistant-msg .msg-bubble {
-    background-color: transparent;
-    color: #ececec;
-    padding-left: 0; /* Modern clean asymmetric layout design rules */
-}
-/* Prevent paragraphs inside the chat bubble from adding double spacing */
-.msg-bubble p {
-    margin: 0 0 8px 0;
-}
-.msg-bubble p:last-child {
-    margin-bottom: 0;
-}
-
-/* Style lists generated by markdown */
-.msg-bubble ul, .msg-bubble ol {
-    margin: 0 0 8px 0;
-    padding-left: 20px;
-}
-
-/* Style code blocks generated by markdown */
-.msg-bubble pre {
-    background-color: #1e1e1e;
-    color: #d4d4d4;
-    padding: 10px;
-    border-radius: 6px;
-    overflow-x: auto;
-    font-family: 'Courier New', Courier, monospace;
-    margin: 8px 0;
-}
-
-/* Style inline code segments like `this` */
-.msg-bubble :not(pre) > code {
-    background-color: rgba(0, 0, 0, 0.1);
-    padding: 2px 4px;
-    border-radius: 4px;
-    font-family: monospace;
-}
-
-/* --- Unified Mobile Responsive Configurations --- */
+/* ==========================================================================
+   7. Unified Mobile Responsive Layout Configurations
+   ========================================================================== */
 @media (max-width: 768px) {
-
     #sidebar {
         position: fixed;
         left: -260px;
@@ -542,27 +740,22 @@ a:active {
     }
 
     .chat-interface {
-        padding: 20px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
+        padding: 0 16px;
         height: calc(100vh - 60px);
     }
 
     .greeting-container h3 {
         font-size: 1.6rem;
-        text-align: center;
         margin-bottom: 20px;
     }
 
     .chat-input-container {
-        position: relative;
         width: 100%;
-        max-width: 600px;
-        margin: 0;
-        left: auto;
-        transform: none;
+        margin: 0 0 12px 0;
+    }
+
+    .user-msg .msg-bubble {
+        max-width: 85%; /* Ensures better layout on small mobile screen boundaries */
     }
 }
 
@@ -575,6 +768,45 @@ a:active {
 
 @media (min-width: 769px) {
     .menu-burger-btn {
-        display: none; /* Enforces mobile burger assets stay hidden across standard display variants */
+        display: none;
+    }
+}
+
+/* ==========================================================================
+   8. AI Thinking / Processing Animation
+   ========================================================================== */
+.typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 12px 0;
+}
+
+.typing-indicator span {
+    width: 8px;
+    height: 8px;
+    background-color: #9b9b9b;
+    border-radius: 50%;
+    display: inline-block;
+    animation: bounceDots 1.4s infinite ease-in-out both;
+}
+
+/* Offsets the animation timing for each dot to create a wave effect */
+.typing-indicator span:nth-child(1) {
+    animation-delay: -0.32s;
+}
+
+.typing-indicator span:nth-child(2) {
+    animation-delay: -0.16s;
+}
+
+@keyframes bounceDots {
+    0%, 80%, 100% {
+        transform: scale(0);
+        opacity: 0.3;
+    }
+    40% {
+        transform: scale(1.0);
+        opacity: 1;
     }
 }

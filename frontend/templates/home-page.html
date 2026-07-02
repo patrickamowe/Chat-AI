@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="{{url_for('static', path='CSS/home-page.css')}}">
     <link rel="stylesheet" href="{{url_for('static', path='CSS/popup.css')}}">
     <link rel="stylesheet" href="{{url_for('static', path='CSS/auth.css')}}">
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
 </head>
 <body>
     <div id="app-wrapper">
@@ -21,7 +23,10 @@
                 </div>
 
                 <div class="menu-item" id="chats-history-container">
-                    <span>Chat history</span>
+                    <div class="history-header-row">
+                        <span>Chat history</span>
+                        <span id="clear-all-chats-btn" class="clear-history-action auth-only">Clear all</span>
+                    </div>
                     <ul class="chats-history-list auth-only" id="user-conversations"></ul>
                 </div>
             </nav>
@@ -40,7 +45,19 @@
                     <button id="sidebar-toggle" class="menu-burger-btn">
                         <img src="{{url_for('static', path='Images/icons/menu-icon.png')}}" alt="Menu">
                     </button>
-                    <span id="app-logo"><a href="/">Chat-AI</a></span>
+
+                    <div id="app-logo" class="logo-dropdown">
+                        <a href="/" id="current-brand">Chat-AI</a>
+
+                        <button class="dropdown-arrow-btn" id="dropdown-toggle" aria-label="Toggle Model Menu">
+                            <span class="dropdown-arrow">▼</span>
+                        </button>
+
+                        <ul class="dropdown-menu">
+                            <li data-value="chat-ai" class="active">Chat-AI</li>
+                            <li data-value="gemini">Gemini</li>
+                        </ul>
+                    </div>
                 </div>
 
                 <div class="user-actions-container">
@@ -74,7 +91,6 @@
     </div>
 
     {% include 'auth-popup.html' %}
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script type="module" src="{{url_for('static', path='JS/auth.js')}}"></script>
     <script type="module" src="{{url_for('static', path='JS/home-page.js')}}"></script>
     <script src="{{url_for('static', path='JS/auth-popup.js')}}"></script>

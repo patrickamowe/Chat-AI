@@ -16,7 +16,7 @@ class MessageResponseData(BaseModel):
     """The shape of a single message returned in live conversation loops."""
     id: Optional[int] = None
     sender: str = "anonymous"
-    conversation_id: int | None
+    conversation_id: int = None
     conversation_title: str | None
     user_prompt: str
     AI_response: str
