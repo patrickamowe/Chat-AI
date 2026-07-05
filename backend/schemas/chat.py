@@ -10,6 +10,10 @@ class SendMessageRequest(BaseModel):
     user_id: Optional[int] = None
     conversation_id: Optional[int] = None
 
+class ConversationRenameRequest(BaseModel):
+    """Data sent by frontend when rename conversation."""
+    title: str
+
 
 # --- RESPONSE DATA SHAPES ---
 class MessageResponseData(BaseModel):
@@ -49,6 +53,9 @@ class ConversationDetailsSuccessEnvelope(APIBaseSuccessEnvelope):
     content: List[MessageRecord]
 
 class ConversationDeleteSuccessEnvelope(APIBaseSuccessEnvelope):
+    content: Optional[None] = None
+
+class ConversationRenameSuccessEnvelope(APIBaseSuccessEnvelope):
     content: Optional[None] = None
 
 

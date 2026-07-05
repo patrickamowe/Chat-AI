@@ -1,14 +1,14 @@
 import { getUserInfo, updateUserInfo, changeUserPassword, deleteUserAcc } from "./api-call.js";
 import { USER_INFO_URL, CHANGE_PASSWORD_URL } from "./constants.js";
-import { tokenIsValid } from "./auth-helper-fun.js";
+import { getAuthenticatedToken } from "./auth-helper-fun.js";
 
-// Helper function to handle boilerplate auth checks and token retrieval
-async function getAuthenticatedToken() {
-    const isLoggedIn = await tokenIsValid();
-    if (!isLoggedIn) return null;
-    return localStorage.getItem('access_token');
-}
 
+
+/**
+ * Gets the current logged-in user's profile details and formats their name.
+ *
+ * @returns {Promise<object|null>} An object with the username, first letter capitalized, and email, or null if it fails.
+ */
 async function userDetails() {
     const accessToken = await getAuthenticatedToken();
     if (!accessToken) {
@@ -36,6 +36,13 @@ async function userDetails() {
     }
 }
 
+/**
+ * Updates the user's account name and email address on the server.
+ *
+ * @param {string} username - The new username to set.
+ * @param {string} email - The new email address to set.
+ * @returns {Promise<object>} An object showing whether the update succeeded and a message string.
+ */
 async function updateUserDetails(username, email) {
     const accessToken = await getAuthenticatedToken();
     if (!accessToken) {
@@ -57,6 +64,13 @@ async function updateUserDetails(username, email) {
     }
 }
 
+/**
+ * Submits a request to change the user's password.
+ *
+ * @param {string} password - The current account password.
+ * @param {string} new_password - The brand new password to save.
+ * @returns {Promise<object>} An object showing whether the change succeeded and a message string.
+ */
 async function changePassword(password, new_password) {
     const accessToken = await getAuthenticatedToken();
     if (!accessToken) {
@@ -78,6 +92,11 @@ async function changePassword(password, new_password) {
     }
 }
 
+/**
+ * Requests the permanent removal of the current user's account.
+ *
+ * @returns {Promise<object>} An object showing whether the deletion succeeded and a message string.
+ */
 async function deleteAcc() {
     const accessToken = await getAuthenticatedToken();
     if (!accessToken) {

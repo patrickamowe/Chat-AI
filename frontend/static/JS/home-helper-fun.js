@@ -8,39 +8,58 @@ import {
     getConversations,
     getConversation,
     deleteConversations,
-    deleteConversation
+    deleteConversation,
+    renameConversation
 } from './api-call.js';
-import { tokenIsValid } from "./auth-helper-fun.js";
+import { getAuthenticatedToken } from "./auth-helper-fun.js";
 
 /**
- * Sends a user query payload down to the backend communication network.
+ * Sends a chat message to the server and returns the AI's response.
+ *
+ * @param {string} userPrompt - The message text sent by the user.
+ * @param {string|null} conversationId - The ID of the current chat thread, if it exists.
+ * @returns {Promise<object|null>} The server response data, or null if the request fails.
  */
 async function userChat(userPrompt, conversationId = null) {
-    const isLoggedIn = await tokenIsValid();
-    const accessToken = localStorage.getItem("access_token");
-    let response;
-
-    if (isLoggedIn) {
-        response = await chat(userPrompt, MESSAGE_URL, accessToken, conversationId);
-    } else {
-        response = await chat(userPrompt, MESSAGE_URL, accessToken);
+    const accessToken = await getAuthenticatedToken();
+    if (!accessToken) {
+        console.warn("User is not authenticated. Cannot send chat message.");
+        return null;
     }
 
-    if (response && response.success) {
-        return response.content;
-    } else {
-        console.error("Failed to get user chat:", response?.message || "Unknown API error");
+    try {
+        let response;
+        if (conversationId) {
+            response = await chat(userPrompt, MESSAGE_URL, accessToken, conversationId);
+        } else {
+            response = await chat(userPrompt, MESSAGE_URL);
+        }
+
+        if (response && response.success) {
+            return response.content;
+        } else {
+            console.error("Failed to get user chat:", response?.message || "Unknown API error");
+            return null;
+        }
+    } catch (error) {
+        console.error("Network error while sending chat message:", error);
         return null;
     }
 }
 
 /**
- * Downloads a structured historical index containing all past conversation meta records.
+ * Gets a list of all past conversations for the logged-in user.
+ *
+ * @returns {Promise<array|null>} An array containing past conversation records, or null if something goes wrong.
  */
 async function getUserConversations() {
-    const isLoggedIn = await tokenIsValid();
-    if (isLoggedIn) {
-        const accessToken = localStorage.getItem("access_token");
+    const accessToken = await getAuthenticatedToken();
+    if (!accessToken) {
+        console.warn("User is not authenticated. Cannot fetch user conversations.");
+        return null;
+    }
+
+    try {
         const response = await getConversations(accessToken, CONVERSATIONS_URL);
 
         if (response.success) {
@@ -49,19 +68,25 @@ async function getUserConversations() {
             console.error("Failure to fetch user conversations:", response.message);
             return null;
         }
-    } else {
-        console.warn("User is not authenticated. Cannot fetch user conversations.");
+    } catch (error) {
+        console.error("Network error while fetching user conversations:", error);
         return null;
     }
 }
 
 /**
- * Requests global server-side removal of all conversational indices.
+ * Deletes all conversations for the logged-in user.
+ *
+ * @returns {Promise<string|null>} A success status message from the server, or null if the deletion fails.
  */
 async function deleteUserConversations() {
-    const isLoggedIn = await tokenIsValid();
-    if (isLoggedIn) {
-        const accessToken = localStorage.getItem("access_token");
+    const accessToken = await getAuthenticatedToken();
+    if (!accessToken) {
+        console.warn("User is not authenticated. Cannot delete user conversations.");
+        return null;
+    }
+
+    try {
         const response = await deleteConversations(accessToken, CONVERSATIONS_URL);
 
         if (response.success) {
@@ -70,21 +95,58 @@ async function deleteUserConversations() {
             console.error("Failure to delete user conversations:", response.message);
             return null;
         }
-    } else {
-        console.warn("User is not authenticated. Cannot delete user conversations.");
+    } catch (error) {
+        console.error("Network error while deleting user conversations:", error);
         return null;
     }
 }
 
 /**
- * Fetches the entire full-length message history stream log.
+ * Changes the title of a specific conversation.
+ *
+ * @param {string} conversationId - The unique ID of the conversation to rename.
+ * @param {string} title - The new name for the conversation.
+ * @returns {Promise<string|null>} A success status message from the server, or null if the rename fails.
+ */
+async function renameUserConversation(conversationId, title) {
+    const accessToken = await getAuthenticatedToken();
+    if (!accessToken) {
+        console.warn("User is not authenticated. Cannot rename user conversation.");
+        return null;
+    }
+
+    try {
+        const URL = `${CONVERSATION_URL}/${conversationId}`;
+        const response = await renameConversation(title, accessToken, URL);
+
+        if (response.success) {
+            return response.message;
+        } else {
+            console.error("Failure to rename user conversation:", response.message);
+            return null;
+        }
+    } catch (error) {
+        console.error("Network error while renaming user conversation:", error);
+        return null;
+    }
+}
+
+/**
+ * Gets the full history of messages for a single conversation.
+ *
+ * @param {string} conversationId - The unique ID of the conversation to fetch.
+ * @returns {Promise<array|null>} An array of messages from the conversation history, or null if it fails.
  */
 async function getUserConversation(conversationId) {
-    const isLoggedIn = await tokenIsValid();
-    if (isLoggedIn) {
-        const accessToken = localStorage.getItem("access_token");
+    const accessToken = await getAuthenticatedToken();
+    if (!accessToken) {
+        console.warn("User is not authenticated. Cannot fetch user conversation.");
+        return null;
+    }
+
+    try {
         const URL = `${CONVERSATION_URL}/${conversationId}`;
-        const response = await getConversation(conversationId, accessToken, URL);
+        const response = await getConversation(accessToken, URL);
 
         if (response.success) {
             return response.content;
@@ -92,21 +154,28 @@ async function getUserConversation(conversationId) {
             console.error("Failure to fetch user conversation:", response.message);
             return null;
         }
-    } else {
-        console.warn("User is not authenticated. Cannot fetch user conversation.");
+    } catch (error) {
+        console.error("Network error while fetching user conversation:", error);
         return null;
     }
 }
 
 /**
- * Targets and purges a single conversation container from remote cloud database nodes.
+ * Deletes a single conversation from the server.
+ *
+ * @param {string} conversationId - The unique ID of the conversation to delete.
+ * @returns {Promise<string|null>} A success status message from the server, or null if the deletion fails.
  */
 async function deleteUserConversation(conversationId) {
-    const isLoggedIn = await tokenIsValid();
-    if (isLoggedIn) {
-        const accessToken = localStorage.getItem("access_token");
+    const accessToken = await getAuthenticatedToken();
+    if (!accessToken) {
+        console.warn("User is not authenticated. Cannot delete user conversation.");
+        return null;
+    }
+
+    try {
         const URL = `${CONVERSATION_URL}/${conversationId}`;
-        const response = await deleteConversation(conversationId, accessToken, URL);
+        const response = await deleteConversation(accessToken, URL);
 
         if (response.success) {
             return response.message;
@@ -114,20 +183,20 @@ async function deleteUserConversation(conversationId) {
             console.error("Failure to delete user conversation:", response.message);
             return null;
         }
-    } else {
-        console.warn("User is not authenticated. Cannot delete user conversation.");
+    } catch (error) {
+        console.error("Network error while deleting user conversation:", error);
         return null;
     }
 }
 
 /**
- * UI UTILITY: Generates and appends standard dialog bubbles inside the chat window viewport.
- * Features an interactive progressive word-by-word typewriter rendering algorithm for incoming assistant responses.
- * @function appendMessageBubble
- * @param {HTMLElement} stream - The scrolling message stream panel node.
- * @param {'user'|'assistant'} role - Identity flag determining structural style configurations.
- * @param {string} text - Message context payload being forced down visual trees.
- * @param {boolean} [shouldStream=false] - When true, forces the text to type out smoothly word-by-word.
+ * Adds a message bubble (user or AI) into the chat area, with an optional word-by-word typewriter effect.
+ *
+ * @param {HTMLElement} stream - The HTML container element where messages are displayed.
+ * @param {'user'|'assistant'} role - Tells the UI who sent the message to apply the correct styling.
+ * @param {string} text - The actual message text to show.
+ * @param {boolean} [shouldStream=false] - When true, forces the AI text to type out smoothly word-by-word.
+ * @returns {void} This function updates the UI directly and does not return a value.
  */
 function appendMessageBubble(stream, role, text, shouldStream = false) {
     if (!stream) return;
@@ -140,7 +209,6 @@ function appendMessageBubble(stream, role, text, shouldStream = false) {
     row.appendChild(bubble);
     stream.appendChild(row);
 
-    // XSS Sanitization helper for raw user blocks
     const escapeHTML = (rawStr) => {
         const tempDiv = document.createElement('div');
         tempDiv.textContent = rawStr;
@@ -153,7 +221,6 @@ function appendMessageBubble(stream, role, text, shouldStream = false) {
         return;
     }
 
-    // Process Assistant Text
     if (shouldStream) {
         const words = text.split(' ');
         let index = 0;
@@ -164,7 +231,6 @@ function appendMessageBubble(stream, role, text, shouldStream = false) {
                 currentTextAccumulator += (index === 0 ? '' : ' ') + words[index];
                 index++;
 
-                // Dynamically compile markdown layouts down the DOM tree
                 if (typeof marked !== 'undefined') {
                     bubble.innerHTML = marked.parse(currentTextAccumulator);
                 } else {
@@ -172,7 +238,7 @@ function appendMessageBubble(stream, role, text, shouldStream = false) {
                 }
 
                 scrollToBottom(stream);
-                setTimeout(streamNextWord, 35); // Smooth layout streaming cadence delay
+                setTimeout(streamNextWord, 35);
             }
         }
         streamNextWord();
@@ -187,14 +253,25 @@ function appendMessageBubble(stream, role, text, shouldStream = false) {
 }
 
 /**
- * UI UTILITY: Force scrolls the active message pool target into instant user visibility.
+ * Automatically scrolls the chat container down so the latest message is visible.
+ *
+ * @param {HTMLElement} stream - The HTML container element to scroll.
+ * @returns {void} This function updates the UI directly and does not return a value.
  */
 function scrollToBottom(stream) {
     if (stream) stream.scrollTop = stream.scrollHeight;
 }
 
 /**
- * CORE LOGIC: Orchestrates submission stream pipelines, updating structural layouts.
+ * Handles what happens when a user submits a new chat message, managing inputs, bubbles, and responses.
+ *
+ * @param {object} options - An object containing HTML element references and the current state.
+ * @param {HTMLInputElement} options.chatInput - The input field text box.
+ * @param {HTMLElement} options.chatInterface - The main chat wrapper element.
+ * @param {HTMLElement} options.messageStream - The chat message history container.
+ * @param {HTMLElement} options.ulConversations - The sidebar history list element.
+ * @param {string|null} options.currentConversationId - The ID of the conversation currently open.
+ * @returns {Promise<string|null>} The ID of the conversation thread (useful if a new thread started), or null.
  */
 async function handleQuerySubmission({
     chatInput,
@@ -226,7 +303,6 @@ async function handleQuerySubmission({
         const nextId = response.conversation_id || response.content?.conversation_id;
         const conversationTitle = response.conversation_title || response.content?.title || `Conversation #${nextId}`;
 
-        // Set shouldStream flag to TRUE so fresh replies feel alive
         appendMessageBubble(messageStream, 'assistant', reply, true);
 
         const isNewThread = !currentConversationId || currentConversationId === "null";
@@ -253,7 +329,11 @@ async function handleQuerySubmission({
 }
 
 /**
- * Downloads a historic log slice and drops message rows down the UI viewport.
+ * Clears the chat window and loads every old message from a saved conversation history.
+ *
+ * @param {string} conversationId - The ID of the historical chat thread to display.
+ * @param {HTMLElement} messageStream - The HTML container where the chat history bubbles should load.
+ * @returns {Promise<void>} Resolves when the message elements are completely loaded and drawn into the UI.
  */
 async function loadActiveMessages(conversationId, messageStream) {
     if (!messageStream) return;
@@ -280,7 +360,13 @@ async function loadActiveMessages(conversationId, messageStream) {
 }
 
 /**
- * SIDEBAR UTILITY: Formats and shifts a historical list item directly into tracking sidebar slots.
+ * Adds a conversation item into the tracking sidebar, including its rename/share/delete action dropdown menu.
+ *
+ * @param {HTMLElement} container - The HTML sidebar list element (`<ul>`).
+ * @param {object} convo - The data object representing the conversation thread.
+ * @param {string} convo.id - The unique ID of the conversation.
+ * @param {string} convo.title - The visible name/title of the conversation.
+ * @returns {void} This function manipulates the HTML layout directly and does not return a value.
  */
 function appendHistoryItemToSidebar(container, convo) {
     const li = document.createElement('li');
@@ -344,7 +430,17 @@ function appendHistoryItemToSidebar(container, convo) {
 // --- Placeholder Handler Functions ---
 function renameConvo(id) {
     const newName = prompt("Enter new conversation name:");
-    if (newName) console.log(`Renaming convo ${id} to: ${newName}`);
+
+    if (newName) {
+        const response = renameUserConversation(id, newName);
+
+        if (response) {
+            window.alert(response);
+            window.location.reload();
+        } else {
+            window.alert("Fail to Rename conversation.")
+        }
+    }
 }
 
 function shareConvo(id) {

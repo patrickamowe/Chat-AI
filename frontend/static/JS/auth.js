@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else {
                         console.warn("Server-side signout returned an error envelope:", response.message);
                     }
-                } catch (error) { // Fixed capitalized standard error object naming here
+                } catch (error) {
                     console.error("Network failure during server signout sync:", error);
                 }
             }

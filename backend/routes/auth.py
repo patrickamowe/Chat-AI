@@ -35,7 +35,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 @router.post(
     "/signin",
     response_model=UserLoginSuccessEnvelope,
-    summary="Authenticate user credentials",
+    summary="Log in a user",
     responses={
         400: {"model": APIFailureEnvelope, "description": "Invalid username or password."},
         500: {"model": APIFailureEnvelope, "description": "Internal server error."}
@@ -46,22 +46,21 @@ async def login_user(
     db: Session = Depends(get_db)
 ):
     """
-    Verifies user credentials and establishes an authenticated session.
+    Verifies user credentials and logs the user into the system.
 
-    Validates the provided username and password. Upon successful validation,
-    generates a stateful matching pair of access and refresh tokens, hashes
-    them for secure database validation/revocation, and returns them with user information.
+    Validates the username and password. If correct, generates a new pair
+    of access and refresh tokens, hashes them for secure storage, and returns them.
 
     Args:
-        user_credential (UserLoginRequest): Username and password login payload.
-        db (Session): The SQLAlchemy database session dependency.
+        user_credential (UserLoginRequest): The username and password payload.
+        db (Session): Database session dependency.
 
     Raises:
-        HTTPException: 400 Bad Request if authentication matching fails.
-        HTTPException: 500 Internal Server Error on unexpected systemic faults.
+        HTTPException: 400 Bad Request if the credentials do not match.
+        HTTPException: 500 Internal Server Error if a database or server fault occurs.
 
     Returns:
-        UserLoginSuccessEnvelope: Payload with access/refresh tokens and user meta fields.
+        UserLoginSuccessEnvelope: Payload with access/refresh tokens and user details.
     """
     try:
         user = db.query(User).filter(User.username == user_credential.username.lower()).first()
@@ -72,11 +71,11 @@ async def login_user(
                 detail="Invalid username or password. Please try again."
             )
 
-        # Generate tokens
+        # Generate fresh tokens
         access_token = create_access_token({"user_id": user.id, "username": user.username})
         refresh_token = create_refresh_token(user_id=int(user.id))
 
-        # Hash and save tokens to the database tracking session status
+        # Hash and save token records to track active sessions
         user.access_token = hash_token(access_token)
         user.refresh_token = hash_token(refresh_token)
         db.commit()
@@ -99,16 +98,17 @@ async def login_user(
         raise
     except Exception as e:
         db.rollback()
+        print("Login Error:", str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred during sign-in: {str(e)}"
+            detail="An unexpected error occurred during sign-in."
         )
 
 
 @router.post(
     "/refresh",
     response_model=TokenRefreshSuccessEnvelope,
-    summary="Renew expired access tokens",
+    summary="Renew an expired access token",
     responses={
         401: {"model": APIFailureEnvelope, "description": "Invalid, expired, or revoked token status."},
         500: {"model": APIFailureEnvelope, "description": "Internal server error."}
@@ -119,21 +119,21 @@ async def token_refresh(
     db: Session = Depends(get_db)
 ):
     """
-    Swaps a valid refresh token for a newly issued short-lived access token.
+    Exchanges a valid refresh token for a new access token.
 
-    Decodes the incoming refresh token to ensure validity and checks it against
-    the active hash stored in the database. If matched, regenerates a clean access token.
+    Decodes the incoming refresh token to confirm its validity and checks it
+    against the stored hash in the database. If it matches, a new access token is generated.
 
     Args:
-        token (TokenRefreshRequest): Input model containing the active refresh token.
-        db (Session): The SQLAlchemy database session dependency.
+        token (TokenRefreshRequest): Payload containing the refresh token string.
+        db (Session): Database session dependency.
 
     Raises:
-        HTTPException: 401 Unauthorized if token validation fails or session is revoked.
-        HTTPException: 500 Internal Server Error on processing exceptions.
+        HTTPException: 401 Unauthorized if token validation fails or the session was revoked.
+        HTTPException: 500 Internal Server Error if database saving fails.
 
     Returns:
-        TokenRefreshSuccessEnvelope: Response containing a newly populated access token.
+        TokenRefreshSuccessEnvelope: Response containing the newly generated access token.
     """
     try:
         # Verify the refresh token structure and expiration status
@@ -148,14 +148,14 @@ async def token_refresh(
 
         user = db.query(User).filter(User.id == user_id).first()
 
-        # Enforce exact structural match against hashed database instance tracking
+        # Ensure the token matches the hashed record stored in the database
         if not user or user.refresh_token != hash_token(token.refresh_token):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="This authentication session has been revoked or modified."
             )
 
-        # Issue fresh access token mapping
+        # Issue a new access token
         new_access_token = create_access_token({"user_id": user.id, "username": user.username})
         user.access_token = hash_token(new_access_token)
         db.commit()
@@ -173,9 +173,10 @@ async def token_refresh(
         raise
     except Exception as e:
         db.rollback()
+        print("Token Refresh Error:", str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred during token renewal: {str(e)}"
+            detail="An unexpected error occurred during token renewal."
         )
 
 
@@ -193,21 +194,21 @@ async def validate_token(
     db: Session = Depends(get_db)
 ):
     """
-    Confirms client authentication status by auditing an active access token.
+    Checks if an access token is valid and active.
 
-    Decodes signature metadata and coordinates against the persistent token storage hashes
-    to assure the token has not been prematurely dropped by a logging event.
+    Decodes the token signature and verifies it matches the active database token record
+    to ensure it has not been invalidated by a logout event.
 
     Args:
-        token (TokenValidationRequest): Payload containing the target access token.
-        db (Session): The SQLAlchemy database session dependency.
+        token (TokenValidationRequest): Payload containing the access token string.
+        db (Session): Database session dependency.
 
     Raises:
-        HTTPException: 401 Unauthorized if signature verification fails or token is revoked.
-        HTTPException: 500 Internal Server Error on processing exceptions.
+        HTTPException: 401 Unauthorized if the token is invalid, expired, or revoked.
+        HTTPException: 500 Internal Server Error if an unexpected parsing error occurs.
 
     Returns:
-        ValidAccessTokenSuccessEnvelope: Verification packet affirming authentication state.
+        ValidAccessTokenSuccessEnvelope: Verification confirmation along with user metadata.
     """
     try:
         try:
@@ -243,19 +244,20 @@ async def validate_token(
     except HTTPException:
         raise
     except Exception as e:
+        print("Token Validation Error:", str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred during token validation: {str(e)}"
+            detail="An unexpected error occurred during token validation."
         )
 
 
 @router.post(
     "/logout",
     response_model=UserLogoutSuccessEnvelope,
-    summary="Terminate active session",
+    summary="Log out the current user",
     responses={
         401: {"model": APIFailureEnvelope, "description": "Invalid or missing access token."},
-        404: {"model": APIFailureEnvelope, "description": "Associated record targets missing."},
+        404: {"model": APIFailureEnvelope, "description": "User profile not found."},
         500: {"model": APIFailureEnvelope, "description": "Internal server error."}
     }
 )
@@ -264,21 +266,21 @@ async def logout_user(
     auth_user: AccessTokenJWTPayload = Depends(get_current_user)
 ):
     """
-    Invalidates current access parameters and destroys stored backend token tracking hashes.
+    Logs out the user and invalidates their current session tokens.
 
-    Acts as an explicit security fence by nullifying access and refresh validation matrices
-    tied directly to the processing user profile identifier.
+    Clears both the saved access and refresh token values inside the user's
+    database record so they can no longer be used.
 
     Args:
-        db (Session): The SQLAlchemy database session dependency.
-        auth_user (AccessTokenJWTPayload): Decoded JWT context payload passed from depend handlers.
+        db (Session): Database session dependency.
+        auth_user (AccessTokenJWTPayload): Decoded payload from the active access token.
 
     Raises:
-        HTTPException: 404 Not Found if authentication identity context holds no valid record.
-        HTTPException: 500 Internal Server Error on persistence state adjustment issues.
+        HTTPException: 404 Not Found if the user record cannot be located.
+        HTTPException: 500 Internal Server Error if database update operations fail.
 
     Returns:
-        UserLogoutSuccessEnvelope: Clean termination validation payload.
+        UserLogoutSuccessEnvelope: Success confirmation payload.
     """
     try:
         user = db.query(User).filter(User.id == auth_user.user_id).first()
@@ -288,7 +290,7 @@ async def logout_user(
                 detail="The requested user session could not be found."
             )
 
-        # Invalidate active keys inside the database
+        # Invalidate active keys inside the database record
         user.access_token = None
         user.refresh_token = None
         db.commit()
@@ -296,14 +298,14 @@ async def logout_user(
         return UserLogoutSuccessEnvelope(
             status_code=status.HTTP_200_OK,
             success=True,
-            message="Successfully logged out. Your session keys have been cleared.",
-            content=None
+            message="Successfully logged out.",
         )
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
+        print("Logout Error:", str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred during logout procedures: {str(e)}"
+            detail="An unexpected error occurred during logout procedures."
         )

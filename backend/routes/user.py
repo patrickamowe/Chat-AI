@@ -36,20 +36,19 @@ async def create_user(
     """
     Registers a new user within the system.
 
-    This endpoint verifies the uniqueness of the provided username, hashes
-    the plaintext password using a secure hashing algorithm, and persists
-    the new user record to the database.
+    Checks if the username is unique, hashes the password,
+    and saves the new user record to the database.
 
     Args:
-        user_data (UserRegistrationRequest): The incoming user profile and credential data.
-        db (Session): The SQLAlchemy database session dependency.
+        user_data (UserRegistrationRequest): The registration details (username, email, password).
+        db (Session): Database session dependency.
 
     Raises:
-        HTTPException: 400 Bad Request if the username is already registered.
-        HTTPException: 500 Internal Server Error for unhandled database exceptions.
+        HTTPException: 400 Bad Request if the username is already taken.
+        HTTPException: 500 Internal Server Error if the database save operation fails.
 
     Returns:
-        UserRegistrationSuccessEnvelope: The newly created user profile details.
+        UserRegistrationSuccessEnvelope: The profile details of the newly created user.
     """
     try:
         # Check if the username is already taken
@@ -81,9 +80,10 @@ async def create_user(
         raise
     except Exception as e:
         db.rollback()
+        print("User Signup Error:", str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred while creating your account: {str(e)}"
+            detail="An unexpected error occurred while creating your account."
         )
 
 
@@ -103,21 +103,20 @@ async def get_user_info(
         auth_user: AccessTokenJWTPayload = Depends(get_current_user)
 ):
     """
-    Fetches the profile details of the currently authenticated user.
+    Fetches the profile details of the currently logged-in user.
 
-    Utilizes the JWT token payload extracted from the authorization header
-    to locate and return the user's account details.
+    Uses the user ID from the active JWT token to lookup and return account details.
 
     Args:
-        db (Session): The SQLAlchemy database session dependency.
-        auth_user (AccessTokenJWTPayload): Decoded JWT token details for the current user.
+        db (Session): Database session dependency.
+        auth_user (AccessTokenJWTPayload): Decoded JWT token payload.
 
     Raises:
-        HTTPException: 404 Not Found if the user ID from the token does not exist.
-        HTTPException: 500 Internal Server Error for unhandled system exceptions.
+        HTTPException: 404 Not Found if the user ID does not match any database record.
+        HTTPException: 500 Internal Server Error if the database query fails.
 
     Returns:
-        UserProfileFetchSuccessEnvelope: Object containing user account details.
+        UserProfileFetchSuccessEnvelope: Object containing the user's account profile details.
     """
     try:
         user = db.query(User).filter(User.id == auth_user.user_id).first()
@@ -137,10 +136,12 @@ async def get_user_info(
     except HTTPException:
         raise
     except Exception as e:
+        print("Fetch Profile Error:", str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred while fetching the profile: {str(e)}"
+            detail="An unexpected error occurred while fetching your profile details."
         )
+
 
 @router.delete(
     "/profile",
@@ -158,19 +159,18 @@ async def delete_profile(
     auth_user: AccessTokenJWTPayload = Depends(get_current_user)
 ):
     """
-    Permanently purges a user's account and profile from the system.
+    Permanently deletes a user account from the system.
 
-    Locates the user record corresponding to the authenticated user ID,
-    serializes their profile metadata for the final response envelope,
-    and removes the record entirely from the persistent database.
+    Finds the user record, prepares their metadata for the final confirmation message,
+    and removes the record from the database.
 
     Args:
-        db (Session): The SQLAlchemy database session dependency.
-        auth_user (AccessTokenJWTPayload): Decoded JWT token payload of the currently authenticated user.
+        db (Session): Database session dependency.
+        auth_user (AccessTokenJWTPayload): Decoded JWT token payload.
 
     Raises:
-        HTTPException: 404 Not Found if the user ID from the token cannot be found in the database.
-        HTTPException: 500 Internal Server Error for unhandled database exceptions during deletion.
+        HTTPException: 404 Not Found if the user profile cannot be located.
+        HTTPException: 500 Internal Server Error if the database delete operation fails.
 
     Returns:
         UserProfileFetchSuccessEnvelope: The profile data of the deleted user account.
@@ -183,11 +183,9 @@ async def delete_profile(
                 detail="The requested user profile could not be found."
             )
 
-        # Map the profile data into Pydantic BEFORE deleting the DB record
-        # to avoid Access/Session serialization errors post-commit.
+        # Map data into Pydantic before deletion to avoid session lazy-loading errors post-commit
         deleted_user_data = UserProfileResponseData.model_validate(user)
 
-        # Safely delete the user instance using the database session
         db.delete(user)
         db.commit()
 
@@ -202,17 +200,21 @@ async def delete_profile(
         raise
     except Exception as e:
         db.rollback()
+        print("Delete Profile Error:", str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An unexpected error occurred while deleting your profile: {str(e)}"
+            detail="An unexpected error occurred while deleting your profile account."
         )
+
+
 @router.put(
     "/profile",
     response_model=UserProfileEditSuccessEnvelope,
     status_code=status.HTTP_200_OK,
     summary="Update user profile details",
     responses={
-        401: {"model": APIFailureEnvelope, "description": "The username already exist, Invalid or missing access token."},
+        400: {"model": APIFailureEnvelope, "description": "The username already exists."},
+        401: {"model": APIFailureEnvelope, "description": "Invalid or missing access token."},
         404: {"model": APIFailureEnvelope, "description": "User profile not found."},
         500: {"model": APIFailureEnvelope, "description": "Internal server error."}
     }
@@ -223,20 +225,20 @@ async def edit_profile(
         auth_user: AccessTokenJWTPayload = Depends(get_current_user),
 ):
     """
-    Updates the contact information (username and email) for the authenticated user.
+    Updates basic contact information (username and email) for the logged-in user.
 
     Args:
-        user_details (UserEditDetailsRequest): The modified profile parameters.
-        db (Session): The SQLAlchemy database session dependency.
-        auth_user (AccessTokenJWTPayload): Decoded JWT token details for the current user.
+        user_details (UserEditDetailsRequest): The updated username and email fields.
+        db (Session): Database session dependency.
+        auth_user (AccessTokenJWTPayload): Decoded JWT token payload.
 
     Raises:
-        HTTPException: 401 The username is taken.
-        HTTPException: 404 Not Found if the user session points to a non-existent record.
-        HTTPException: 500 Internal Server Error on database synchronization failures.
+        HTTPException: 400 Bad Request if the new username is already taken by someone else.
+        HTTPException: 404 Not Found if the user profile cannot be found.
+        HTTPException: 500 Internal Server Error if database saving fails.
 
     Returns:
-        UserProfileFetchSuccessEnvelope: The updated user profile data.
+        UserProfileEditSuccessEnvelope: Confirmation indicating a successful profile update.
     """
     try:
         user = db.query(User).filter(User.id == auth_user.user_id).first()
@@ -246,8 +248,9 @@ async def edit_profile(
                 detail="The requested user profile could not be found."
             )
 
+        # Ensure the target new username isn't stolen by another account
         username_existed = db.query(User).filter(User.username == user_details.username.lower()).first()
-        if username_existed:
+        if username_existed and username_existed.id != user.id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Username is already taken by another user."
@@ -268,9 +271,10 @@ async def edit_profile(
         raise
     except Exception as e:
         db.rollback()
+        print("Edit Profile Details Error:", str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred while updating profile details: {str(e)}"
+            detail="An internal server error occurred while updating your profile details."
         )
 
 
@@ -294,21 +298,20 @@ async def edit_password(
     """
     Changes the password for the currently logged-in user.
 
-    Verifies the user's existing password before allowing them to apply
-    and hash a brand-new credentials choice.
+    Validates the current password before hashing and saving the new credentials choice.
 
     Args:
-        user_passwords (UserEditPasswordRequest): Payload containing old and new passwords.
-        db (Session): The SQLAlchemy database session dependency.
-        auth_user (AccessTokenJWTPayload): Decoded JWT token details for the current user.
+        user_passwords (UserEditPasswordRequest): Payload containing both the old and new passwords.
+        db (Session): Database session dependency.
+        auth_user (AccessTokenJWTPayload): Decoded JWT token payload.
 
     Raises:
         HTTPException: 400 Bad Request if the current password check fails.
         HTTPException: 404 Not Found if the target user profile doesn't exist.
-        HTTPException: 500 Internal Server Error for processing/hashing failures.
+        HTTPException: 500 Internal Server Error if security hashing or database commits fail.
 
     Returns:
-        UserProfileFetchSuccessEnvelope: Confirmation of successful password modification.
+        UserProfileEditSuccessEnvelope: Confirmation of a successful password change.
     """
     try:
         user = db.query(User).filter(User.id == auth_user.user_id).first()
@@ -338,7 +341,8 @@ async def edit_password(
         raise
     except Exception as e:
         db.rollback()
+        print("Edit Password Error:", str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred while changing your password: {str(e)}"
+            detail="An internal server error occurred while applying your new password."
         )
