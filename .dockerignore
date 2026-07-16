@@ -1,0 +1,42 @@
+# Version control
+.git
+.gitignore
+
+# Python cache/venv
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# IDE
+.idea/
+.vscode/
+
+# Env files (never bake secrets into an image)
+.env
+.env.*
+!.env.example
+
+# Tests, docs, CI
+tests/
+.github/
+*.md
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Alembic migration cache (keep versions/, drop __pycache__)
+alembic/__pycache__/
+
+# Alembic migration history doc
+alembic/versions
+
+# Local DB files
+*.db
+*.sqlite3
+
+# Misc
+.DS_Store
+*.log
