@@ -5,15 +5,15 @@ from ..db.database import get_db
 from ..models.model import User
 from ..schemas.auth import (
     AccessTokenJWTPayload,
-    UserProfileFetchSuccessEnvelope,
+    UserProfileFetchSuccessSchema,
     UserProfileResponseData,
-    UserProfileEditSuccessEnvelope,
-    UserRegistrationRequest,
-    UserEditPasswordRequest,
-    UserEditDetailsRequest,
-    UserRegistrationSuccessEnvelope
+    UserProfileEditSuccessSchema,
+    UserRegistrationRequestData,
+    UserEditPasswordRequestData,
+    UserEditDetailsRequestData,
+    UserRegistrationSuccessSchema
 )
-from ..schemas.base import APIFailureEnvelope
+from ..schemas.base import APIFailureSchema
 from ..utils.auth import get_current_user, get_password_hash, verify_password
 
 router = APIRouter(prefix="/users", tags=["Users"])
@@ -21,16 +21,16 @@ router = APIRouter(prefix="/users", tags=["Users"])
 
 @router.post(
     "/signup",
-    response_model=UserRegistrationSuccessEnvelope,
+    response_model=UserRegistrationSuccessSchema,
     status_code=status.HTTP_201_CREATED,
     summary="Register a new user account",
     responses={
-        400: {"model": APIFailureEnvelope, "description": "Registration failed due to client error."},
-        500: {"model": APIFailureEnvelope, "description": "Internal server error."}
+        400: {"model": APIFailureSchema, "description": "Registration failed due to client error."},
+        500: {"model": APIFailureSchema, "description": "Internal server error."}
     }
 )
 async def create_user(
-        user_data: UserRegistrationRequest,
+        user_data: UserRegistrationRequestData,
         db: Session = Depends(get_db)
 ):
     """
@@ -40,7 +40,7 @@ async def create_user(
     and saves the new user record to the database.
 
     Args:
-        user_data (UserRegistrationRequest): The registration details (username, email, password).
+        user_data (UserRegistrationRequestData): The registration details (username, email, password).
         db (Session): Database session dependency.
 
     Raises:
@@ -48,7 +48,7 @@ async def create_user(
         HTTPException: 500 Internal Server Error if the database save operation fails.
 
     Returns:
-        UserRegistrationSuccessEnvelope: The profile details of the newly created user.
+        UserRegistrationSuccessSchema: The profile details of the newly created user.
     """
     try:
         # Check if the username is already taken
@@ -69,7 +69,7 @@ async def create_user(
         db.commit()
         db.refresh(new_user)
 
-        return UserRegistrationSuccessEnvelope(
+        return UserRegistrationSuccessSchema(
             status_code=status.HTTP_201_CREATED,
             success=True,
             message="User account created successfully!",
@@ -89,13 +89,13 @@ async def create_user(
 
 @router.get(
     "/profile",
-    response_model=UserProfileFetchSuccessEnvelope,
+    response_model=UserProfileFetchSuccessSchema,
     status_code=status.HTTP_200_OK,
     summary="Retrieve current user profile",
     responses={
-        401: {"model": APIFailureEnvelope, "description": "Invalid or missing access token."},
-        404: {"model": APIFailureEnvelope, "description": "User profile not found."},
-        500: {"model": APIFailureEnvelope, "description": "Internal server error."}
+        401: {"model": APIFailureSchema, "description": "Invalid or missing access token."},
+        404: {"model": APIFailureSchema, "description": "User profile not found."},
+        500: {"model": APIFailureSchema, "description": "Internal server error."}
     }
 )
 async def get_user_info(
@@ -116,7 +116,7 @@ async def get_user_info(
         HTTPException: 500 Internal Server Error if the database query fails.
 
     Returns:
-        UserProfileFetchSuccessEnvelope: Object containing the user's account profile details.
+        UserProfileFetchSuccessSchema: Object containing the user's account profile details.
     """
     try:
         user = db.query(User).filter(User.id == auth_user.user_id).first()
@@ -126,7 +126,7 @@ async def get_user_info(
                 detail="The requested user profile could not be found."
             )
 
-        return UserProfileFetchSuccessEnvelope(
+        return UserProfileFetchSuccessSchema(
             status_code=status.HTTP_200_OK,
             success=True,
             message="User profile retrieved successfully.",
@@ -145,13 +145,13 @@ async def get_user_info(
 
 @router.delete(
     "/profile",
-    response_model=UserProfileFetchSuccessEnvelope,
+    response_model=UserProfileFetchSuccessSchema,
     status_code=status.HTTP_200_OK,
     summary="Permanently delete user profile",
     responses={
-        401: {"model": APIFailureEnvelope, "description": "Invalid or missing access token."},
-        404: {"model": APIFailureEnvelope, "description": "User profile not found."},
-        500: {"model": APIFailureEnvelope, "description": "Internal server error."}
+        401: {"model": APIFailureSchema, "description": "Invalid or missing access token."},
+        404: {"model": APIFailureSchema, "description": "User profile not found."},
+        500: {"model": APIFailureSchema, "description": "Internal server error."}
     }
 )
 async def delete_profile(
@@ -173,7 +173,7 @@ async def delete_profile(
         HTTPException: 500 Internal Server Error if the database delete operation fails.
 
     Returns:
-        UserProfileFetchSuccessEnvelope: The profile data of the deleted user account.
+        UserProfileFetchSuccessSchema: The profile data of the deleted user account.
     """
     try:
         user = db.query(User).filter(User.id == auth_user.user_id).first()
@@ -189,7 +189,7 @@ async def delete_profile(
         db.delete(user)
         db.commit()
 
-        return UserProfileFetchSuccessEnvelope(
+        return UserProfileFetchSuccessSchema(
             status_code=status.HTTP_200_OK,
             success=True,
             message="Your user profile and account details have been permanently deleted.",
@@ -209,18 +209,18 @@ async def delete_profile(
 
 @router.put(
     "/profile",
-    response_model=UserProfileEditSuccessEnvelope,
+    response_model=UserProfileEditSuccessSchema,
     status_code=status.HTTP_200_OK,
     summary="Update user profile details",
     responses={
-        400: {"model": APIFailureEnvelope, "description": "The username already exists."},
-        401: {"model": APIFailureEnvelope, "description": "Invalid or missing access token."},
-        404: {"model": APIFailureEnvelope, "description": "User profile not found."},
-        500: {"model": APIFailureEnvelope, "description": "Internal server error."}
+        400: {"model": APIFailureSchema, "description": "The username already exists."},
+        401: {"model": APIFailureSchema, "description": "Invalid or missing access token."},
+        404: {"model": APIFailureSchema, "description": "User profile not found."},
+        500: {"model": APIFailureSchema, "description": "Internal server error."}
     }
 )
 async def edit_profile(
-        user_details: UserEditDetailsRequest,
+        user_details: UserEditDetailsRequestData,
         db: Session = Depends(get_db),
         auth_user: AccessTokenJWTPayload = Depends(get_current_user),
 ):
@@ -228,7 +228,7 @@ async def edit_profile(
     Updates basic contact information (username and email) for the logged-in user.
 
     Args:
-        user_details (UserEditDetailsRequest): The updated username and email fields.
+        user_details (UserEditDetailsRequestData): The updated username and email fields.
         db (Session): Database session dependency.
         auth_user (AccessTokenJWTPayload): Decoded JWT token payload.
 
@@ -238,7 +238,7 @@ async def edit_profile(
         HTTPException: 500 Internal Server Error if database saving fails.
 
     Returns:
-        UserProfileEditSuccessEnvelope: Confirmation indicating a successful profile update.
+        UserProfileEditSuccessSchema: Confirmation indicating a successful profile update.
     """
     try:
         user = db.query(User).filter(User.id == auth_user.user_id).first()
@@ -261,7 +261,7 @@ async def edit_profile(
         db.commit()
         db.refresh(user)
 
-        return UserProfileEditSuccessEnvelope(
+        return UserProfileEditSuccessSchema(
             status_code=status.HTTP_200_OK,
             success=True,
             message="User profile details updated successfully.",
@@ -280,18 +280,18 @@ async def edit_profile(
 
 @router.put(
     "/password",
-    response_model=UserProfileEditSuccessEnvelope,
+    response_model=UserProfileEditSuccessSchema,
     status_code=status.HTTP_200_OK,
     summary="Update user password",
     responses={
-        401: {"model": APIFailureEnvelope, "description": "Invalid or missing access token."},
-        400: {"model": APIFailureEnvelope, "description": "Incorrect current password provided."},
-        404: {"model": APIFailureEnvelope, "description": "User profile not found."},
-        500: {"model": APIFailureEnvelope, "description": "Internal server error."}
+        401: {"model": APIFailureSchema, "description": "Invalid or missing access token."},
+        400: {"model": APIFailureSchema, "description": "Incorrect current password provided."},
+        404: {"model": APIFailureSchema, "description": "User profile not found."},
+        500: {"model": APIFailureSchema, "description": "Internal server error."}
     }
 )
 async def edit_password(
-        user_passwords: UserEditPasswordRequest,
+        user_passwords: UserEditPasswordRequestData,
         db: Session = Depends(get_db),
         auth_user: AccessTokenJWTPayload = Depends(get_current_user),
 ):
@@ -301,7 +301,7 @@ async def edit_password(
     Validates the current password before hashing and saving the new credentials choice.
 
     Args:
-        user_passwords (UserEditPasswordRequest): Payload containing both the old and new passwords.
+        user_passwords (UserEditPasswordRequestData): Payload containing both the old and new passwords.
         db (Session): Database session dependency.
         auth_user (AccessTokenJWTPayload): Decoded JWT token payload.
 
@@ -311,7 +311,7 @@ async def edit_password(
         HTTPException: 500 Internal Server Error if security hashing or database commits fail.
 
     Returns:
-        UserProfileEditSuccessEnvelope: Confirmation of a successful password change.
+        UserProfileEditSuccessSchema: Confirmation of a successful password change.
     """
     try:
         user = db.query(User).filter(User.id == auth_user.user_id).first()
@@ -331,7 +331,7 @@ async def edit_password(
         db.commit()
         db.refresh(user)
 
-        return UserProfileEditSuccessEnvelope(
+        return UserProfileEditSuccessSchema(
             status_code=status.HTTP_200_OK,
             success=True,
             message="Your password has been changed successfully.",

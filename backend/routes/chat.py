@@ -7,20 +7,20 @@ from pydantic import TypeAdapter, ValidationError
 from ..db.database import get_db
 from ..models.model import Conversation, Message, User
 from ..schemas.auth import AccessTokenJWTPayload
-from ..schemas.base import APIFailureEnvelope
+from ..schemas.base import APIFailureSchema
 from ..schemas.chat import (
-    ConversationDeleteSuccessEnvelope,
-    ConversationDetailsSuccessEnvelope,
-    ConversationsDeleteSuccessEnvelope,
-    ConversationsListSuccessEnvelope,
-    ConversationRenameSuccessEnvelope,
+    ConversationDeleteSuccessSchema,
+    ConversationDetailsSuccessSchema,
+    ConversationsDeleteSuccessSchema,
+    ConversationsListSuccessSchema,
+    ConversationRenameSuccessSchema,
     MessageResponseData,
-    MessageSendSuccessEnvelope,
-    SendMessageRequest,
+    MessageSendSuccessSchema,
+    SendMessageRequestData,
     ConversationInfo,
-    MessageRecord,
+    MessageInfo,
     AssistantResponse,
-    ConversationRenameRequest
+    ConversationRenameRequestData
 )
 from google.genai import types
 from ..utils.auth import get_current_user, get_current_user_optional
@@ -31,17 +31,17 @@ router = APIRouter(prefix="/chat", tags=["Chat"])
 
 @router.post(
     "/message",
-    response_model=MessageSendSuccessEnvelope,
+    response_model=MessageSendSuccessSchema,
     status_code=status.HTTP_200_OK,
     summary="Send a message to the AI assistant",
     responses={
-        404: {"model": APIFailureEnvelope, "description": "User or conversation history not found."},
-        500: {"model": APIFailureEnvelope, "description": "Internal server or database error."},
-        502: {"model": APIFailureEnvelope, "description": "AI model returned an invalid response structure."}
+        404: {"model": APIFailureSchema, "description": "User or conversation history not found."},
+        500: {"model": APIFailureSchema, "description": "Internal server or database error."},
+        502: {"model": APIFailureSchema, "description": "AI model returned an invalid response structure."}
     },
 )
 async def send_message(
-    message_request: SendMessageRequest,
+    message_request: SendMessageRequestData,
     db: Session = Depends(get_db),
     auth_user: Optional[AccessTokenJWTPayload] = Depends(get_current_user_optional),
 ):
@@ -55,7 +55,7 @@ async def send_message(
        Creates a new conversation record in the database.
 
     Args:
-        message_request (SendMessageRequest): The user prompt and optional conversation ID.
+        message_request (SendMessageRequestData): The user prompt and optional conversation ID.
         db (Session): Database session dependency.
         auth_user (Optional[AccessTokenJWTPayload]): Logged-in user data, if available.
 
@@ -65,7 +65,7 @@ async def send_message(
         HTTPException: 500 Internal Server Error if database saving fails.
 
     Returns:
-        MessageSendSuccessEnvelope: The prompt, AI response, and conversation metadata.
+        MessageSendSuccessSchema: The prompt, AI response, and conversation metadata.
     """
     user_prompt = message_request.user_prompt
     conversation_id = message_request.conversation_id
@@ -169,7 +169,7 @@ async def send_message(
 
     # Workflow 1: Guest Chat (Return early, do not save to database)
     if user_id is None:
-        return MessageSendSuccessEnvelope(
+        return MessageSendSuccessSchema(
             status_code=status.HTTP_200_OK,
             success=True,
             message="Guest message processed successfully.",
@@ -215,7 +215,7 @@ async def send_message(
             detail="Database ledger entry insertion failure occurred while saving history threads."
         )
 
-    return MessageSendSuccessEnvelope(
+    return MessageSendSuccessSchema(
         status_code=status.HTTP_200_OK,
         success=True,
         message=success_message,
@@ -232,13 +232,13 @@ async def send_message(
 
 @router.get(
     "/conversations",
-    response_model=ConversationsListSuccessEnvelope,
+    response_model=ConversationsListSuccessSchema,
     status_code=status.HTTP_200_OK,
     summary="Get all conversations for the user",
     responses={
-        401: {"model": APIFailureEnvelope, "description": "Invalid or missing access token."},
-        404: {"model": APIFailureEnvelope, "description": "User account not found."},
-        500: {"model": APIFailureEnvelope, "description": "Internal server database error."}
+        401: {"model": APIFailureSchema, "description": "Invalid or missing access token."},
+        404: {"model": APIFailureSchema, "description": "User account not found."},
+        500: {"model": APIFailureSchema, "description": "Internal server database error."}
     },
 )
 async def get_conversations(
@@ -257,7 +257,7 @@ async def get_conversations(
         HTTPException: 500 Internal Server Error if database query fails.
 
     Returns:
-        ConversationsListSuccessEnvelope: A list of conversation records.
+        ConversationsListSuccessSchema: A list of conversation records.
     """
     try:
         user = db.query(User).filter(User.id == auth_user.user_id).first()
@@ -277,7 +277,7 @@ async def get_conversations(
         adapter = TypeAdapter(list[ConversationInfo])
         formatted_conversations = adapter.dump_python(conversations, mode="json")
 
-        return ConversationsListSuccessEnvelope(
+        return ConversationsListSuccessSchema(
             status_code=status.HTTP_200_OK,
             success=True,
             message="User conversation history retrieved successfully.",
@@ -296,13 +296,13 @@ async def get_conversations(
 
 @router.delete(
     "/conversations",
-    response_model=ConversationsDeleteSuccessEnvelope,
+    response_model=ConversationsDeleteSuccessSchema,
     status_code=status.HTTP_200_OK,
     summary="Delete all conversations for the user",
     responses={
-        401: {"model": APIFailureEnvelope, "description": "Invalid or missing access token."},
-        404: {"model": APIFailureEnvelope, "description": "User account not found."},
-        500: {"model": APIFailureEnvelope, "description": "Database delete operation error."}
+        401: {"model": APIFailureSchema, "description": "Invalid or missing access token."},
+        404: {"model": APIFailureSchema, "description": "User account not found."},
+        500: {"model": APIFailureSchema, "description": "Database delete operation error."}
     },
 )
 async def delete_conversations(
@@ -321,7 +321,7 @@ async def delete_conversations(
         HTTPException: 500 Internal Server Error if mass deletion fails.
 
     Returns:
-        ConversationsDeleteSuccessEnvelope: Clean confirmation signal.
+        ConversationsDeleteSuccessSchema: Clean confirmation signal.
     """
     try:
         user = db.query(User).filter(User.id == auth_user.user_id).first()
@@ -336,7 +336,7 @@ async def delete_conversations(
         )
         db.commit()
 
-        return ConversationsDeleteSuccessEnvelope(
+        return ConversationsDeleteSuccessSchema(
             status_code=status.HTTP_200_OK,
             success=True,
             message="All historical conversation data records have been successfully deleted.",
@@ -355,13 +355,13 @@ async def delete_conversations(
 
 @router.get(
     "/conversation/{conversation_id}",
-    response_model=ConversationDetailsSuccessEnvelope,
+    response_model=ConversationDetailsSuccessSchema,
     status_code=status.HTTP_200_OK,
     summary="Get all messages from a single conversation",
     responses={
-        401: {"model": APIFailureEnvelope, "description": "Invalid or missing access token."},
-        404: {"model": APIFailureEnvelope, "description": "Conversation could not be found."},
-        500: {"model": APIFailureEnvelope, "description": "Internal database parsing error."}
+        401: {"model": APIFailureSchema, "description": "Invalid or missing access token."},
+        404: {"model": APIFailureSchema, "description": "Conversation could not be found."},
+        500: {"model": APIFailureSchema, "description": "Internal database parsing error."}
     },
 )
 async def get_conversation(
@@ -382,7 +382,7 @@ async def get_conversation(
         HTTPException: 500 Internal Server Error if parsing message data fails.
 
     Returns:
-        ConversationDetailsSuccessEnvelope: Chronological list of past messages.
+        ConversationDetailsSuccessSchema: Chronological list of past messages.
     """
     try:
         # Verify conversation ownership
@@ -404,10 +404,10 @@ async def get_conversation(
             .all()
         )
 
-        adapter = TypeAdapter(list[MessageRecord])
+        adapter = TypeAdapter(list[MessageInfo])
         formatted_messages = adapter.dump_python(messages, mode="json")
 
-        return ConversationDetailsSuccessEnvelope(
+        return ConversationDetailsSuccessSchema(
             status_code=status.HTTP_200_OK,
             success=True,
             message="Dialogue timeline history records loaded successfully.",
@@ -426,13 +426,13 @@ async def get_conversation(
 
 @router.delete(
     "/conversation/{conversation_id}",
-    response_model=ConversationDeleteSuccessEnvelope,
+    response_model=ConversationDeleteSuccessSchema,
     status_code=status.HTTP_200_OK,
     summary="Delete a single conversation thread",
     responses={
-        401: {"model": APIFailureEnvelope, "description": "Invalid or missing access token."},
-        404: {"model": APIFailureEnvelope, "description": "Conversation could not be found."},
-        500: {"model": APIFailureEnvelope, "description": "Database record delete failure."}
+        401: {"model": APIFailureSchema, "description": "Invalid or missing access token."},
+        404: {"model": APIFailureSchema, "description": "Conversation could not be found."},
+        500: {"model": APIFailureSchema, "description": "Database record delete failure."}
     },
 )
 async def delete_conversation(
@@ -453,7 +453,7 @@ async def delete_conversation(
         HTTPException: 500 Internal Server Error if database update fails.
 
     Returns:
-        ConversationDeleteSuccessEnvelope: Success confirmation packet.
+        ConversationDeleteSuccessSchema: Success confirmation packet.
     """
     try:
         # Check ownership boundary before running delete commands
@@ -472,7 +472,7 @@ async def delete_conversation(
         db.delete(conversation)
         db.commit()
 
-        return ConversationDeleteSuccessEnvelope(
+        return ConversationDeleteSuccessSchema(
             status_code=status.HTTP_200_OK,
             success=True,
             message="Conversation record successfully purged from database histories.",
@@ -491,18 +491,18 @@ async def delete_conversation(
 
 @router.put(
     "/conversation/{conversation_id}",
-    response_model=ConversationRenameSuccessEnvelope,
+    response_model=ConversationRenameSuccessSchema,
     status_code=status.HTTP_200_OK,
     summary="Rename a conversation title",
     responses={
-        401: {"model": APIFailureEnvelope, "description": "Invalid or missing access token."},
-        404: {"model": APIFailureEnvelope, "description": "Conversation could not be found."},
-        500: {"model": APIFailureEnvelope, "description": "Database rename operation error."}
+        401: {"model": APIFailureSchema, "description": "Invalid or missing access token."},
+        404: {"model": APIFailureSchema, "description": "Conversation could not be found."},
+        500: {"model": APIFailureSchema, "description": "Database rename operation error."}
     },
 )
 async def rename_conversation(
     conversation_id: Annotated[int, Path(title="The ID of the conversation to rename", ge=1)],
-    rename_request: ConversationRenameRequest,
+    rename_request: ConversationRenameRequestData,
     db: Session = Depends(get_db),
     auth_user: AccessTokenJWTPayload = Depends(get_current_user),
 ):
@@ -511,7 +511,7 @@ async def rename_conversation(
 
     Args:
         conversation_id (int): Database unique primary key for the conversation.
-        rename_request (ConversationRenameRequest): Pydantic model containing the new title string.
+        rename_request (ConversationRenameRequestData): Pydantic model containing the new title string.
         db (Session): Database session dependency.
         auth_user (AccessTokenJWTPayload): Authenticated user payload.
 
@@ -520,7 +520,7 @@ async def rename_conversation(
         HTTPException: 500 Internal Server Error if database update fails.
 
     Returns:
-        ConversationRenameSuccessEnvelope: Success confirmation packet.
+        ConversationRenameSuccessSchema: Success confirmation packet.
     """
     try:
         # Fetch conversation safely bounded by owner ID
@@ -541,7 +541,7 @@ async def rename_conversation(
         db.commit()
         db.refresh(conversation)
 
-        return ConversationRenameSuccessEnvelope(
+        return ConversationRenameSuccessSchema(
             status_code=status.HTTP_200_OK,
             success=True,
             message="Conversation rename successful."

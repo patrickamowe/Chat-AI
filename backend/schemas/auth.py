@@ -1,34 +1,34 @@
 from pydantic import BaseModel, ConfigDict, EmailStr
 from typing import Optional
-from .base import APIBaseSuccessEnvelope
+from .base import APIBaseSuccessSchema
 
 # --- REQUEST SCHEMAS ---
-class UserRegistrationRequest(BaseModel):
+class UserRegistrationRequestData(BaseModel):
     """The registration form data sent by a new user trying to create an account."""
     username: str
     password: str
     email: EmailStr
 
-class UserEditDetailsRequest(BaseModel):
+class UserEditDetailsRequestData(BaseModel):
     """The edit form data sent by a new user trying to edit an account."""
     username: str
     email: EmailStr
 
-class UserEditPasswordRequest(BaseModel):
+class UserEditPasswordRequestData(BaseModel):
     """The edit form data sent by a new user trying to edit a password."""
     password: str
     new_password: str
 
-class UserLoginRequest(BaseModel):
+class UserLoginRequestData(BaseModel):
     """Data sent by the frontend login form."""
     username: str
     password: str
 
-class TokenRefreshRequest(BaseModel):
+class TokenRefreshRequestData(BaseModel):
     """Data sent when requesting a new Access Token using a Refresh Token."""
     refresh_token: str
 
-class TokenValidationRequest(BaseModel):
+class TokenValidationRequestData(BaseModel):
     """Data sent by the frontend to validate an Access Token."""
     access_token: str
 
@@ -77,24 +77,24 @@ class ValidAccessTokenResponseData(BaseModel):
     user: AuthenticatedUserFields
 
 
-# --- FINAL ENVELOPES ---
-class UserLoginSuccessEnvelope(APIBaseSuccessEnvelope):
+# --- FINAL SCHEMAS ---
+class UserLoginSuccessSchema(APIBaseSuccessSchema):
     content: LoginResponseData
 
-class UserRegistrationSuccessEnvelope(APIBaseSuccessEnvelope):
+class UserRegistrationSuccessSchema(APIBaseSuccessSchema):
     content: UserProfileResponseData
 
-class UserProfileFetchSuccessEnvelope(APIBaseSuccessEnvelope):
+class UserProfileFetchSuccessSchema(APIBaseSuccessSchema):
     content: UserProfileResponseData
 
-class UserProfileEditSuccessEnvelope(APIBaseSuccessEnvelope):
+class UserProfileEditSuccessSchema(APIBaseSuccessSchema):
     content: Optional[None] = None
 
-class TokenRefreshSuccessEnvelope(APIBaseSuccessEnvelope):
+class TokenRefreshSuccessSchema(APIBaseSuccessSchema):
     content: TokenRefreshResponseData
 
-class ValidAccessTokenSuccessEnvelope(APIBaseSuccessEnvelope):
+class ValidAccessTokenSuccessSchema(APIBaseSuccessSchema):
     content: ValidAccessTokenResponseData
 
-class UserLogoutSuccessEnvelope(APIBaseSuccessEnvelope):
+class UserLogoutSuccessSchema(APIBaseSuccessSchema):
     content: Optional[None] = None

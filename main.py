@@ -7,7 +7,7 @@ from fastapi.templating import Jinja2Templates
 from backend.routes.user import router as user_router
 from backend.routes.auth import router as auth_router
 from backend.routes.chat import router as chat_router
-from backend.schemas.base import APIFailureEnvelope
+from backend.schemas.base import APIFailureSchema
 from backend.db.database import Base, engine
 
 static_dir = "frontend/static"
@@ -18,13 +18,13 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-# 1. Define the origins that are allowed to talk to your backend
+# Define the origins that are allowed to talk to your backend
 origins = [
     "http://127.0.0.1:8000",  # Your local address
     "http://localhost:8000",
 ]
 
-# 2. Add the middleware to your FastAPI application
+# Add the middleware to your FastAPI application
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,          # Allows your frontend origins
@@ -47,12 +47,12 @@ app.include_router(chat_router)
 
 
 @app.exception_handler(HTTPException)
-async def custom_http_exception_handler(request: Request, exc: HTTPException):
+async def custom_http_exception_handler(exc: HTTPException):
     """
-    Global handler to catch all HTTPEvceptions and format them
-    using the standardized APIFailureEnvelope.
+    Global handler to catch all HTTPExceptions and format them
+    using the standardized APIFailureSchema.
     """
-    envelope = APIFailureEnvelope(
+    schema = APIFailureSchema(
         status_code=exc.status_code,
         success=False,
         message=str(exc.detail)
@@ -60,7 +60,7 @@ async def custom_http_exception_handler(request: Request, exc: HTTPException):
 
     return JSONResponse(
         status_code=exc.status_code,
-        content=envelope.model_dump()
+        content=schema.model_dump()
     )
 
 @app.get("/", response_class=HTMLResponse)

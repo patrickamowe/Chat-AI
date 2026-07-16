@@ -1,16 +1,15 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List
-from datetime import datetime
-from .base import APIBaseSuccessEnvelope
+from .base import APIBaseSuccessSchema
 
 # --- REQUEST SCHEMAS ---
-class SendMessageRequest(BaseModel):
+class SendMessageRequestData(BaseModel):
     """Data sent by frontend when submitting a new message to the chat."""
     user_prompt: str
     user_id: Optional[int] = None
     conversation_id: Optional[int] = None
 
-class ConversationRenameRequest(BaseModel):
+class ConversationRenameRequestData(BaseModel):
     """Data sent by frontend when rename conversation."""
     title: str
 
@@ -31,7 +30,7 @@ class ConversationInfo(BaseModel):
     user_id: int
     title: str
 
-class MessageRecord(BaseModel):
+class MessageInfo(BaseModel):
     id: int
     conversation_id: int
     sender: str
@@ -39,23 +38,23 @@ class MessageRecord(BaseModel):
     AI_response: str
 
 
-# --- FINAL ENVELOPES ---
-class MessageSendSuccessEnvelope(APIBaseSuccessEnvelope):
+# --- FINAL SCHEMAS ---
+class MessageSendSuccessSchema(APIBaseSuccessSchema):
     content: MessageResponseData
 
-class ConversationsListSuccessEnvelope(APIBaseSuccessEnvelope):
+class ConversationsListSuccessSchema(APIBaseSuccessSchema):
     content: List[ConversationInfo]
 
-class ConversationsDeleteSuccessEnvelope(APIBaseSuccessEnvelope):
+class ConversationsDeleteSuccessSchema(APIBaseSuccessSchema):
     content: Optional[None] = None
 
-class ConversationDetailsSuccessEnvelope(APIBaseSuccessEnvelope):
-    content: List[MessageRecord]
+class ConversationDetailsSuccessSchema(APIBaseSuccessSchema):
+    content: List[MessageInfo]
 
-class ConversationDeleteSuccessEnvelope(APIBaseSuccessEnvelope):
+class ConversationDeleteSuccessSchema(APIBaseSuccessSchema):
     content: Optional[None] = None
 
-class ConversationRenameSuccessEnvelope(APIBaseSuccessEnvelope):
+class ConversationRenameSuccessSchema(APIBaseSuccessSchema):
     content: Optional[None] = None
 
 

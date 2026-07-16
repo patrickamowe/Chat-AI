@@ -8,17 +8,17 @@ from ..schemas.auth import (
     AuthenticatedUserFields,
     LoginResponseData,
     RefreshTokenJWTPayload,
-    TokenRefreshRequest,
+    TokenRefreshRequestData,
     TokenRefreshResponseData,
-    TokenValidationRequest,
-    UserLoginRequest,
-    UserLoginSuccessEnvelope,
-    UserLogoutSuccessEnvelope,
-    TokenRefreshSuccessEnvelope,
+    TokenValidationRequestData,
+    UserLoginRequestData,
+    UserLoginSuccessSchema,
+    UserLogoutSuccessSchema,
+    TokenRefreshSuccessSchema,
     ValidAccessTokenResponseData,
-    ValidAccessTokenSuccessEnvelope,
+    ValidAccessTokenSuccessSchema,
 )
-from ..schemas.base import APIFailureEnvelope
+from ..schemas.base import APIFailureSchema
 from ..utils.auth import (
     create_access_token,
     create_refresh_token,
@@ -34,15 +34,15 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post(
     "/signin",
-    response_model=UserLoginSuccessEnvelope,
+    response_model=UserLoginSuccessSchema,
     summary="Log in a user",
     responses={
-        400: {"model": APIFailureEnvelope, "description": "Invalid username or password."},
-        500: {"model": APIFailureEnvelope, "description": "Internal server error."}
+        400: {"model": APIFailureSchema, "description": "Invalid username or password."},
+        500: {"model": APIFailureSchema, "description": "Internal server error."}
     }
 )
 async def login_user(
-    user_credential: UserLoginRequest,
+    user_credential: UserLoginRequestData,
     db: Session = Depends(get_db)
 ):
     """
@@ -52,7 +52,7 @@ async def login_user(
     of access and refresh tokens, hashes them for secure storage, and returns them.
 
     Args:
-        user_credential (UserLoginRequest): The username and password payload.
+        user_credential (UserLoginRequestData): The username and password payload.
         db (Session): Database session dependency.
 
     Raises:
@@ -60,7 +60,7 @@ async def login_user(
         HTTPException: 500 Internal Server Error if a database or server fault occurs.
 
     Returns:
-        UserLoginSuccessEnvelope: Payload with access/refresh tokens and user details.
+        UserLoginSuccessSchema: Payload with access/refresh tokens and user details.
     """
     try:
         user = db.query(User).filter(User.username == user_credential.username.lower()).first()
@@ -80,7 +80,7 @@ async def login_user(
         user.refresh_token = hash_token(refresh_token)
         db.commit()
 
-        return UserLoginSuccessEnvelope(
+        return UserLoginSuccessSchema(
             status_code=status.HTTP_200_OK,
             success=True,
             message="Sign-in successful! Welcome back.",
@@ -107,15 +107,15 @@ async def login_user(
 
 @router.post(
     "/refresh",
-    response_model=TokenRefreshSuccessEnvelope,
+    response_model=TokenRefreshSuccessSchema,
     summary="Renew an expired access token",
     responses={
-        401: {"model": APIFailureEnvelope, "description": "Invalid, expired, or revoked token status."},
-        500: {"model": APIFailureEnvelope, "description": "Internal server error."}
+        401: {"model": APIFailureSchema, "description": "Invalid, expired, or revoked token status."},
+        500: {"model": APIFailureSchema, "description": "Internal server error."}
     }
 )
 async def token_refresh(
-    token: TokenRefreshRequest,
+    token: TokenRefreshRequestData,
     db: Session = Depends(get_db)
 ):
     """
@@ -125,7 +125,7 @@ async def token_refresh(
     against the stored hash in the database. If it matches, a new access token is generated.
 
     Args:
-        token (TokenRefreshRequest): Payload containing the refresh token string.
+        token (TokenRefreshRequestData): Payload containing the refresh token string.
         db (Session): Database session dependency.
 
     Raises:
@@ -133,7 +133,7 @@ async def token_refresh(
         HTTPException: 500 Internal Server Error if database saving fails.
 
     Returns:
-        TokenRefreshSuccessEnvelope: Response containing the newly generated access token.
+        TokenRefreshSuccessSchema: Response containing the newly generated access token.
     """
     try:
         # Verify the refresh token structure and expiration status
@@ -160,7 +160,7 @@ async def token_refresh(
         user.access_token = hash_token(new_access_token)
         db.commit()
 
-        return TokenRefreshSuccessEnvelope(
+        return TokenRefreshSuccessSchema(
             status_code=status.HTTP_200_OK,
             success=True,
             message="Access token renewed successfully.",
@@ -182,15 +182,15 @@ async def token_refresh(
 
 @router.post(
     "/validate",
-    response_model=ValidAccessTokenSuccessEnvelope,
+    response_model=ValidAccessTokenSuccessSchema,
     summary="Validate an access token",
     responses={
-        401: {"model": APIFailureEnvelope, "description": "Token is dead, malformed, or compromised."},
-        500: {"model": APIFailureEnvelope, "description": "Internal server error."}
+        401: {"model": APIFailureSchema, "description": "Token is dead, malformed, or compromised."},
+        500: {"model": APIFailureSchema, "description": "Internal server error."}
     }
 )
 async def validate_token(
-    token: TokenValidationRequest,
+    token: TokenValidationRequestData,
     db: Session = Depends(get_db)
 ):
     """
@@ -200,7 +200,7 @@ async def validate_token(
     to ensure it has not been invalidated by a logout event.
 
     Args:
-        token (TokenValidationRequest): Payload containing the access token string.
+        token (TokenValidationRequestData): Payload containing the access token string.
         db (Session): Database session dependency.
 
     Raises:
@@ -208,7 +208,7 @@ async def validate_token(
         HTTPException: 500 Internal Server Error if an unexpected parsing error occurs.
 
     Returns:
-        ValidAccessTokenSuccessEnvelope: Verification confirmation along with user metadata.
+        ValidAccessTokenSuccessSchema: Verification confirmation along with user metadata.
     """
     try:
         try:
@@ -228,7 +228,7 @@ async def validate_token(
                 detail="Access token session has been explicitly revoked or overwritten."
             )
 
-        return ValidAccessTokenSuccessEnvelope(
+        return ValidAccessTokenSuccessSchema(
             status_code=status.HTTP_200_OK,
             success=True,
             message="Access token is verified and valid.",
@@ -253,12 +253,12 @@ async def validate_token(
 
 @router.post(
     "/logout",
-    response_model=UserLogoutSuccessEnvelope,
+    response_model=UserLogoutSuccessSchema,
     summary="Log out the current user",
     responses={
-        401: {"model": APIFailureEnvelope, "description": "Invalid or missing access token."},
-        404: {"model": APIFailureEnvelope, "description": "User profile not found."},
-        500: {"model": APIFailureEnvelope, "description": "Internal server error."}
+        401: {"model": APIFailureSchema, "description": "Invalid or missing access token."},
+        404: {"model": APIFailureSchema, "description": "User profile not found."},
+        500: {"model": APIFailureSchema, "description": "Internal server error."}
     }
 )
 async def logout_user(
@@ -280,7 +280,7 @@ async def logout_user(
         HTTPException: 500 Internal Server Error if database update operations fail.
 
     Returns:
-        UserLogoutSuccessEnvelope: Success confirmation payload.
+        UserLogoutSuccessSchema: Success confirmation payload.
     """
     try:
         user = db.query(User).filter(User.id == auth_user.user_id).first()
@@ -295,7 +295,7 @@ async def logout_user(
         user.refresh_token = None
         db.commit()
 
-        return UserLogoutSuccessEnvelope(
+        return UserLogoutSuccessSchema(
             status_code=status.HTTP_200_OK,
             success=True,
             message="Successfully logged out.",
