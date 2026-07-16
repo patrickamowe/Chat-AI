@@ -8,13 +8,9 @@ from backend.routes.user import router as user_router
 from backend.routes.auth import router as auth_router
 from backend.routes.chat import router as chat_router
 from backend.schemas.base import APIFailureSchema
-from backend.db.database import Base, engine
 
 static_dir = "frontend/static"
 templates_dir = "frontend/templates"
-
-# Tell SQLAlchemy to physically create the tables now
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
