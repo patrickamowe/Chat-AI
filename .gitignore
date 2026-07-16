@@ -13,8 +13,5 @@
 # Python bytecode
 __pycache__
 
-# Alembic Migrations files
-alembic/versions
-
 # Junie Pycharm AI folder
 .junie
