@@ -27,12 +27,6 @@ tests/
 .coverage
 htmlcov/
 
-# Alembic migration cache (keep versions/, drop __pycache__)
-alembic/__pycache__/
-
-# Alembic migration history doc
-alembic/versions
-
 # Local DB files
 *.db
 *.sqlite3

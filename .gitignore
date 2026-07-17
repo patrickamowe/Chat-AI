@@ -7,12 +7,6 @@
 # dotenv environment variable files
 .env
 
-# Alembic migration cache (keep versions/, drop __pycache__)
-alembic/__pycache__/
-
-# Alembic migration history doc
-alembic/versions
-
 # virtual environment
 .venv
 
