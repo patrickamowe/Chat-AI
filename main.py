@@ -43,7 +43,7 @@ app.include_router(chat_router)
 
 
 @app.exception_handler(HTTPException)
-async def custom_http_exception_handler(exc: HTTPException):
+async def custom_http_exception_handler(request: Request, exc: HTTPException):
     """
     Global handler to catch all HTTPExceptions and format them
     using the standardized APIFailureSchema.
@@ -53,7 +53,6 @@ async def custom_http_exception_handler(exc: HTTPException):
         success=False,
         message=str(exc.detail)
     )
-
     return JSONResponse(
         status_code=exc.status_code,
         content=schema.model_dump()

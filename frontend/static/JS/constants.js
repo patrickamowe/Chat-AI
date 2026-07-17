@@ -1,4 +1,4 @@
-const API_BASE_URL = `http://127.0.0.1:8000`;
+const API_BASE_URL = window.location.origin;
 const SIGNIN_URL = `${API_BASE_URL}/auth/signin`;
 const SIGNOUT_URL = `${API_BASE_URL}/auth/logout`;
 const REFRESH_TOKEN_URL = `${API_BASE_URL}/auth/refresh`;
