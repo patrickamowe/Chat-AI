@@ -48,12 +48,22 @@ jobs:
       - name: Run Alembic migrations against test DB
         env:
           DATABASE_URL: "mysql+pymysql://root:rootpass@127.0.0.1:3306/testdb"
+          GEMINI_API_KEY: "test-dummy-key-not-real"
+          JWT_ACCESS_SECRET: "test-secret-not-real"
+          JWT_REFRESH_SECRET: "test-secret-not-real"
+          JWT_ALGORITHM: "HS256"
+          ENVIRONMENT: "development"
         run: alembic upgrade head
 
       - name: Run tests
         env:
           DATABASE_URL: "mysql+pymysql://root:rootpass@127.0.0.1:3306/testdb"
-        run: pytest -v   # add a tests/ folder if you don't have one yet
+          GEMINI_API_KEY: "test-dummy-key-not-real"
+          JWT_ACCESS_SECRET: "test-secret-not-real"
+          JWT_REFRESH_SECRET: "test-secret-not-real"
+          JWT_ALGORITHM: "HS256"
+          ENVIRONMENT: "development"
+        run: pytest -v
 
   deploy-staging:
     name: Deploy to Staging
@@ -61,16 +71,28 @@ jobs:
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: staging
+
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: akhileshns/heroku-deploy@v3.13.15
-        with:
-          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
-          heroku_app_name: ${{ secrets.HEROKU_STAGING_APP_NAME }}
-          heroku_email: ${{ secrets.HEROKU_EMAIL }}
-          usedocker: false
+
+      - name: Install Heroku CLI
+        run: curl https://cli-assets.heroku.com/install.sh | sh
+
+      - name: Deploy to Heroku (Staging)
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+          HEROKU_APP_NAME: ${{ secrets.HEROKU_STAGING_APP_NAME }}
+        run: |
+          heroku git:remote -a "$HEROKU_APP_NAME"
+          git push heroku HEAD:refs/heads/main --force
+
+      - name: Show release status
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+          HEROKU_APP_NAME: ${{ secrets.HEROKU_STAGING_APP_NAME }}
+        run: heroku releases -a "$HEROKU_APP_NAME" -n 1
 
   deploy-production:
     name: Deploy to Production
@@ -78,13 +100,25 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: production
+
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: akhileshns/heroku-deploy@v3.13.15
-        with:
-          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
-          heroku_app_name: ${{ secrets.HEROKU_PRODUCTION_APP_NAME }}
-          heroku_email: ${{ secrets.HEROKU_EMAIL }}
-          usedocker: false
+
+      - name: Install Heroku CLI
+        run: curl https://cli-assets.heroku.com/install.sh | sh
+
+      - name: Deploy to Heroku (Production)
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+          HEROKU_APP_NAME: ${{ secrets.HEROKU_PRODUCTION_APP_NAME }}
+        run: |
+          heroku git:remote -a "$HEROKU_APP_NAME"
+          git push heroku HEAD:refs/heads/main --force
+
+      - name: Show release status
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+          HEROKU_APP_NAME: ${{ secrets.HEROKU_PRODUCTION_APP_NAME }}
+        run: heroku releases -a "$HEROKU_APP_NAME" -n 1
