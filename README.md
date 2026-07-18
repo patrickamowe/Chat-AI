@@ -6,7 +6,7 @@ chats and full user accounts with saved conversation history.
 
 ## Table of Contents
 
-- [Purpose](#purpose)
+- [Description](#Description)
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
 - [Running Locally in a Virtual Environment](#running-locally-in-a-virtual-environment)
@@ -18,7 +18,7 @@ chats and full user accounts with saved conversation history.
 - [Deploying to Heroku](#deploying-to-heroku)
 - [CI/CD (GitHub Actions)](#cicd-github-actions)
 
-## Purpose
+## Description
 
 Chat AI is a self-contained chat assistant: a FastAPI backend serves both the REST
 API and the static frontend (HTML/CSS/JS), backed by a MySQL database for user

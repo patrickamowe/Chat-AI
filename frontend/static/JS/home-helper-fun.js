@@ -22,17 +22,16 @@ import { getAuthenticatedToken } from "./auth-helper-fun.js";
  */
 async function userChat(userPrompt, conversationId = null) {
     const accessToken = await getAuthenticatedToken();
-    if (!accessToken) {
-        console.warn("User is not authenticated. Cannot send chat message.");
-        return null;
-    }
+    let response;
 
     try {
-        let response;
-        if (conversationId) {
+        if (!accessToken) {
+            console.warn("User is not authenticated. Sending chat message as guest user.");
+            response = await chat(userPrompt, MESSAGE_URL);
+        } else if (conversationId) {
             response = await chat(userPrompt, MESSAGE_URL, accessToken, conversationId);
         } else {
-            response = await chat(userPrompt, MESSAGE_URL);
+            response = await chat(userPrompt, MESSAGE_URL, accessToken);
         }
 
         if (response && response.success) {
